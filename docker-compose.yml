@@ -1,0 +1,24 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # In a container, reach the host's Ollama (running natively) like this.
+      # For the PUBLIC demo set LLM_PROVIDER=api instead (no local Ollama there).
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Optional: a standalone Chroma server. For the MVP, embedded Chroma
+  # (CHROMA_DIR) is simpler, so this is commented out by default.
+  # chroma:
+  #   image: chromadb/chroma:latest
+  #   ports:
+  #     - "8001:8000"
+  #   volumes:
+  #     - chroma-data:/data
+# volumes:
+#   chroma-data:

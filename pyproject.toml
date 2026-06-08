@@ -1,0 +1,44 @@
+[project]
+name = "DetoxApp"
+version = "0.1.0"
+description = "Privacy-first agentic digital-wellbeing coach (working name)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "langgraph>=0.2.50",
+    "langchain-core>=0.3",
+    "langchain-ollama>=0.2",      # local provider (Ollama)
+    "langchain-openai>=0.2",      # one cloud provider for the public demo
+    "langchain-chroma>=0.1.4",
+    "chromadb>=0.5",
+    "langfuse>=2.50",             # agent observability / tracing
+    "httpx>=0.27",
+]
+# To use other cloud providers, add the matching package and set LLM_PROVIDER:
+#   Gemini  -> langchain-google-genai   (LLM_PROVIDER=google)
+#   Claude  -> langchain-anthropic       (LLM_PROVIDER=anthropic)
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.7",
+    "deepeval>=1.4",             # behavioural evals for the coach
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/coach"]
