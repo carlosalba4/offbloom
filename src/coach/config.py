@@ -25,6 +25,7 @@ class Settings(BaseSettings):
 
     # Vector store
     chroma_dir: str = "./.chroma"
+    corpus_dir: str = "./data/corpus"
 
     # Observability (optional)
     langfuse_public_key: str | None = None
