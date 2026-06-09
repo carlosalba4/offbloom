@@ -10,9 +10,18 @@ Contrato: docs/02-architecture.md §2 y ADR-003.
 from __future__ import annotations
 
 import enum
-from typing import TypedDict
+from typing import Annotated, TypedDict
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+def _accumulate(left: list[str] | None, right: list[str] | None) -> list[str]:
+    """Reducer acumulador defensivo para el canal `errors`.
+
+    Concatena los errores emitidos por varios nodos sin perder ninguno, aunque
+    alguno de los lados sea `None`.
+    """
+    return [*(left or []), *(right or [])]
 
 
 class Lang(enum.StrEnum):
@@ -238,4 +247,4 @@ class CoachState(TypedDict, total=False):
     plan: WeeklyPlan
     activities: list[CuratedActivity]
     derivation: DerivationMessage | None
-    errors: list[str]
+    errors: Annotated[list[str], _accumulate]
