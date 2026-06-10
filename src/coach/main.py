@@ -1,4 +1,5 @@
 """FastAPI entrypoint. Keep route handlers thin: validate -> call graph -> return."""
+
 from __future__ import annotations
 
 from fastapi import FastAPI

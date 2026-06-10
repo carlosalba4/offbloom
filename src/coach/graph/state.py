@@ -7,6 +7,7 @@ las actividades offline del Curador.
 
 Contrato: docs/02-architecture.md §2 y ADR-003.
 """
+
 from __future__ import annotations
 
 import enum
@@ -120,9 +121,7 @@ class UsageData(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    categories: list[CategoryUsage] = Field(
-        default_factory=list, description="Uso por categoría."
-    )
+    categories: list[CategoryUsage] = Field(default_factory=list, description="Uso por categoría.")
     peak_windows: list[TimeOfDay] = Field(
         default_factory=list, description="Franjas horarias de mayor uso."
     )

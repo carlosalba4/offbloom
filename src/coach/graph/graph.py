@@ -8,6 +8,7 @@ usando coach.llm.get_chat_model() para mantener el modelo agnóstico.
 
 Contrato: docs/02-architecture.md §2-§3.
 """
+
 from __future__ import annotations
 
 from langgraph.graph import END, START, StateGraph

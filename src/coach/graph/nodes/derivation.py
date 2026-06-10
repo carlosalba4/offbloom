@@ -13,6 +13,7 @@ dígito de contacto, consejo clínico, nombres de fármacos o "tratamientos".
 
 Contrato: docs/02-architecture.md §3.
 """
+
 from __future__ import annotations
 
 from coach.graph.state import (
@@ -92,6 +93,4 @@ def derivation(state: CoachState) -> CoachState:
     reflection = _build_reflection(risk.reason, lang)
     message = template.format(reflection=reflection)
 
-    return {
-        "derivation": DerivationMessage(message=message, resource_type=resource_type)
-    }
+    return {"derivation": DerivationMessage(message=message, resource_type=resource_type)}

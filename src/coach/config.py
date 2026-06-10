@@ -1,4 +1,5 @@
 """Central settings, loaded from env / .env. Nothing is hardcoded elsewhere."""
+
 from __future__ import annotations
 
 from pydantic_settings import BaseSettings, SettingsConfigDict

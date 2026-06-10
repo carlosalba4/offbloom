@@ -6,6 +6,7 @@ from ``settings.llm_provider``. Switching local <-> cloud is one env var
 (LLM_PROVIDER). Imports are lazy so you only need the package for the provider
 you actually use.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -21,9 +22,7 @@ def get_chat_model(**overrides: Any):
     if provider == "ollama":
         from langchain_ollama import ChatOllama
 
-        return ChatOllama(
-            model=settings.ollama_model, base_url=settings.ollama_base_url, **params
-        )
+        return ChatOllama(model=settings.ollama_model, base_url=settings.ollama_base_url, **params)
     if provider == "openai":
         from langchain_openai import ChatOpenAI
 
@@ -37,9 +36,7 @@ def get_chat_model(**overrides: Any):
     if provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
 
-        return ChatAnthropic(
-            model=settings.api_model, api_key=settings.anthropic_api_key, **params
-        )
+        return ChatAnthropic(model=settings.api_model, api_key=settings.anthropic_api_key, **params)
 
     raise ValueError(f"Unknown LLM_PROVIDER: {settings.llm_provider!r}")
 

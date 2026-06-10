@@ -7,6 +7,7 @@ de actividades JSONL (colección ``activities``), los embebe con bge-m3 vía
 Ejecución:
     uv run python -m coach.rag.ingest
 """
+
 from __future__ import annotations
 
 import json
@@ -44,7 +45,7 @@ def _parse_frontmatter(text: str) -> tuple[dict[str, object], str] | None:
     if end == -1:
         return None
     yaml_text = text[4:end]
-    body = text[end + 5:]
+    body = text[end + 5 :]
     metadata: dict[str, object] = yaml.safe_load(yaml_text) or {}
     return metadata, body
 

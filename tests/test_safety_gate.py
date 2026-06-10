@@ -3,6 +3,7 @@
 All tests are deterministic and never call the LLM (the analyst node is not
 touched).  Structure: Arrange – Act – Assert (AAA).
 """
+
 from __future__ import annotations
 
 import pytest

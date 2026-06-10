@@ -10,6 +10,7 @@ Expone dos funciones públicas para los nodos del grafo:
 El grafo no conoce Chroma: recibe DTOs tipados (``RetrievedChunk``,
 ``RetrievedActivity``). El encapsulamiento cumple ADR-002.
 """
+
 from __future__ import annotations
 
 import functools

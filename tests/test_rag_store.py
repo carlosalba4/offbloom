@@ -6,6 +6,7 @@ fijo de actividades; `_build_where` se prueba importándola directamente.
 
 Estructura: Arrange – Act – Assert (AAA).
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -343,10 +344,7 @@ def test_search_activities_truncates_results_to_k(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Arrange — 30 actividades que pasan todos los filtros Python; k=3
-    docs = [
-        _act(id=f"act-{i}", reemplaza="scroll_nocturno", momento="manana")
-        for i in range(30)
-    ]
+    docs = [_act(id=f"act-{i}", reemplaza="scroll_nocturno", momento="manana") for i in range(30)]
     fake_store = _FakeStore(docs=docs)
     monkeypatch.setattr("coach.rag.store._get_store", lambda name: fake_store)
 

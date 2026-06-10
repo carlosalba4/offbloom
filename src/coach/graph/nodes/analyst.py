@@ -7,6 +7,7 @@ No usa RAG ni diagnostica: se basa solo en los datos de la propia persona.
 Contrato: docs/02-architecture.md §2-§3. Comportamiento de seguridad anclado en
 data/corpus/08-seguridad-y-limites.md.
 """
+
 from __future__ import annotations
 
 from langchain_core.messages import HumanMessage, SystemMessage
