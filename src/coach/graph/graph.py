@@ -1,10 +1,11 @@
 """Ensambla el coach como un `StateGraph` de LangGraph.
 
-Hoy cablea el gate de seguridad: Analyst -> (Derivation | continuar). Cuando una
+Cablea el gate de seguridad: Analyst -> (Derivation | continuar). Cuando una
 señal de riesgo está activa, el grafo deriva a una respuesta de seguridad
-curada; en caso contrario sigue su curso. El Planner y el Curador se añadirán en
-la rama "continue" (ver PUNTO DE EXTENSIÓN), fundamentados vía coach.rag y
-usando coach.llm.get_chat_model() para mantener el modelo agnóstico.
+curada; en caso contrario la rama "continue" sigue su curso: Planner -> Curator
+-> END. El Planner fundamenta el plan semanal vía coach.rag y el Curador propone
+actividades offline; ambos usan coach.llm.get_chat_model() para mantener el
+modelo agnóstico.
 
 Contrato: docs/02-architecture.md §2-§3.
 """
@@ -15,7 +16,9 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from coach.graph.nodes.analyst import analyst
+from coach.graph.nodes.curator import curator
 from coach.graph.nodes.derivation import derivation
+from coach.graph.nodes.planner import planner
 from coach.graph.state import CoachState
 
 
@@ -38,16 +41,22 @@ def build_coach_graph() -> CompiledStateGraph:
 
     builder.add_node("analyst", analyst)
     builder.add_node("derivation", derivation)
+    builder.add_node("planner", planner)
+    builder.add_node("curator", curator)
 
     builder.add_edge(START, "analyst")
 
-    # PUNTO DE EXTENSIÓN: la rama "continue" apuntará al nodo `planner` cuando
-    # exista. Hoy, sin Planner, termina el grafo en END.
+    # Gate de seguridad: si hay riesgo se deriva; si no, la rama "continue"
+    # recorre el flujo principal Planner -> Curator -> END.
     builder.add_conditional_edges(
         "analyst",
         route_after_analyst,
-        {"derivation": "derivation", "continue": END},
+        {"derivation": "derivation", "continue": "planner"},
     )
     builder.add_edge("derivation", END)
+
+    # Rama "continue": planificación fundamentada y curación de actividades.
+    builder.add_edge("planner", "curator")
+    builder.add_edge("curator", END)
 
     return builder.compile()
