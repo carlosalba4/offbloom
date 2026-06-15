@@ -4,7 +4,7 @@ titulo: "Gestión de impulsos (surfear el impulso)"
 categoria: tecnica
 lang: es
 tags: [impulso, urge-surfing, pausa, atencion-plena]
-fuente: "Contenido base de DetoxApp — revisar/ampliar con fuentes vetadas"
+fuente: "Síntesis basada en 'urge surfing' y prevención de recaídas con mindfulness (Marlatt; Bowen, Chawla y Marlatt, 2010)"
 ---
 
 # Gestión de impulsos: surfear el impulso

@@ -4,7 +4,7 @@ titulo: "Higiene de notificaciones y dispositivos"
 categoria: tecnica
 lang: es
 tags: [notificaciones, dispositivos, atencion, interrupciones]
-fuente: "Contenido base de DetoxApp — revisar/ampliar con fuentes vetadas"
+fuente: "Síntesis basada en diseño persuasivo y economía de la atención (Fogg Behavior Model; Center for Humane Technology)"
 ---
 
 # Higiene de notificaciones y dispositivos

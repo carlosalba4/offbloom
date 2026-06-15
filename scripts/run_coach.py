@@ -63,7 +63,7 @@ from coach.graph.state import (
 # Si es True, tras la tabla comparativa imprime el desglose completo de cada
 # caso reusando los `print_*` (analysis, risk/derivation, plan/activities,
 # errors). Por defecto solo la tabla resumen.
-SHOW_DETAIL: bool = False
+SHOW_DETAIL: bool = True
 
 
 @dataclass(frozen=True)

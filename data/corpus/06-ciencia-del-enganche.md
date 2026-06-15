@@ -4,7 +4,7 @@ titulo: "Por qué engancha: recompensa variable y atención"
 categoria: psicoeducacion
 lang: es
 tags: [psicoeducacion, recompensa-variable, atencion, diseno-persuasivo]
-fuente: "Contenido base de DetoxApp — revisar/ampliar con fuentes vetadas"
+fuente: "Síntesis basada en diseño conductual y recompensa variable (Fogg Behavior Model; Eyal, 'Hooked', 2014; Skinner)"
 ---
 
 # Por qué engancha: recompensa variable y atención

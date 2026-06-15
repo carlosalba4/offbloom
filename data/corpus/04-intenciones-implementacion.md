@@ -4,7 +4,7 @@ titulo: "Intenciones de implementación y encadenado de hábitos"
 categoria: tecnica
 lang: es
 tags: [habitos, planificacion, rutina, intencion]
-fuente: "Contenido base de DetoxApp — revisar/ampliar con fuentes vetadas"
+fuente: "Síntesis basada en las intenciones de implementación (Gollwitzer, 1999, American Psychologist)"
 ---
 
 # Intenciones de implementación y encadenado de hábitos

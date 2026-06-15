@@ -4,7 +4,7 @@ titulo: "Rutinas de desconexión (mañana y noche)"
 categoria: rutina
 lang: es
 tags: [rutina, sueno, manana, noche, limites]
-fuente: "Contenido base de DetoxApp — revisar/ampliar con fuentes vetadas"
+fuente: "Síntesis basada en higiene del sueño y rutinas de desconexión (Sleep Foundation; Harvard Health; NHS)"
 ---
 
 # Rutinas de desconexión

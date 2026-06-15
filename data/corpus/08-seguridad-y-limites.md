@@ -4,7 +4,7 @@ titulo: "Seguridad, límites y cuándo buscar ayuda"
 categoria: seguridad
 lang: es
 tags: [seguridad, limites, salud-mental, derivacion]
-fuente: "Contenido base de DetoxApp — revisar/ampliar con fuentes vetadas"
+fuente: "Orientación de derivación basada en directrices de salud mental (p. ej. OMS, NHS); no es consejo clínico"
 ---
 
 # Seguridad, límites y cuándo buscar ayuda

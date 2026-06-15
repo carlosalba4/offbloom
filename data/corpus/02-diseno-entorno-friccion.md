@@ -4,7 +4,7 @@ titulo: "Diseño del entorno y fricción"
 categoria: tecnica
 lang: es
 tags: [entorno, friccion, diseno, disparadores]
-fuente: "Contenido base de DetoxApp — revisar/ampliar con fuentes vetadas"
+fuente: "Síntesis basada en arquitectura de decisiones y reducción de fricción (Thaler y Sunstein, 'Nudge', 2008)"
 ---
 
 # Diseño del entorno y fricción
