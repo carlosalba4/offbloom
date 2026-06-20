@@ -1,0 +1,185 @@
+/**
+ * Capa de dominio del cliente: tipos espejo del contrato de la API (`CoachRequest`),
+ * catálogos de opciones con etiqueta legible en español ↔ valor exacto que espera
+ * el backend, y el armado puro del request.
+ *
+ * Contrato backend: src/coach/main.py (CoachRequest) y src/coach/graph/state.py
+ * (UserProfile, Constraints, UsageData, CategoryUsage y enums).
+ */
+
+// ---------------------------------------------------------------------------
+// Enums (los valores DEBEN coincidir con los del backend)
+// ---------------------------------------------------------------------------
+
+export type EnergyLevel = "LOW" | "MEDIUM" | "HIGH"
+export type Place = "HOME" | "OUTDOORS" | "ANYWHERE"
+export type SocialPreference = "SOLO" | "WITH_OTHERS" | "ANY"
+export type TimeOfDay = "MORNING" | "AFTERNOON" | "EVENING" | "NIGHT"
+export type Lang = "ES" | "EN"
+
+// ---------------------------------------------------------------------------
+// Tipos del request (espejo de los modelos Pydantic)
+// ---------------------------------------------------------------------------
+
+export interface Constraints {
+  available_minutes: number
+  energy: EnergyLevel
+  place: Place
+  social: SocialPreference
+}
+
+export interface UserProfile {
+  goals: string[]
+  interests: string[]
+  constraints: Constraints
+  lang: Lang
+}
+
+export interface CategoryUsage {
+  category: string
+  minutes_per_day: number
+}
+
+export interface UsageData {
+  categories: CategoryUsage[]
+  peak_windows: TimeOfDay[]
+  self_reported_triggers: string[]
+}
+
+export interface CoachRequest {
+  profile: UserProfile
+  usage: UsageData
+}
+
+// ---------------------------------------------------------------------------
+// Catálogos de opciones (etiqueta español → valor de API)
+// ---------------------------------------------------------------------------
+
+export interface EnumOption<T extends string> {
+  value: T
+  label: string
+}
+
+export const ENERGY_OPTIONS: ReadonlyArray<EnumOption<EnergyLevel>> = [
+  { value: "LOW", label: "Baja" },
+  { value: "MEDIUM", label: "Media" },
+  { value: "HIGH", label: "Alta" },
+]
+
+export const PLACE_OPTIONS: ReadonlyArray<EnumOption<Place>> = [
+  { value: "HOME", label: "En casa" },
+  { value: "OUTDOORS", label: "Al aire libre" },
+  { value: "ANYWHERE", label: "En cualquier sitio" },
+]
+
+export const SOCIAL_OPTIONS: ReadonlyArray<EnumOption<SocialPreference>> = [
+  { value: "SOLO", label: "A solas" },
+  { value: "WITH_OTHERS", label: "Con otras personas" },
+  { value: "ANY", label: "Me da igual" },
+]
+
+export const TIME_OPTIONS: ReadonlyArray<EnumOption<TimeOfDay>> = [
+  { value: "MORNING", label: "Mañana" },
+  { value: "AFTERNOON", label: "Tarde" },
+  { value: "EVENING", label: "Noche" },
+  { value: "NIGHT", label: "Madrugada" },
+]
+
+// Listas predefinidas, alineadas con la persona principal y el corpus.
+export const GOAL_OPTIONS: readonly string[] = [
+  "Dormir mejor",
+  "Reducir scroll nocturno",
+  "Recuperar tiempo de calidad",
+  "Menos ansiedad",
+  "Más foco",
+]
+
+export const INTEREST_OPTIONS: readonly string[] = [
+  "Lectura",
+  "Cocina",
+  "Naturaleza / aire libre",
+  "Música",
+  "Ejercicio",
+  "Manualidades",
+]
+
+export const TRIGGER_OPTIONS: readonly string[] = [
+  "Aburrimiento",
+  "Ansiedad antes de dormir",
+  "FOMO",
+  "Costumbre",
+  "Estrés",
+]
+
+// Categorías de uso fijas (etiqueta = valor enviado como `category`).
+export const USAGE_CATEGORIES: readonly string[] = [
+  "Redes sociales",
+  "Vídeo corto",
+  "Mensajería",
+  "Juegos",
+  "Noticias / navegación",
+]
+
+// ---------------------------------------------------------------------------
+// Estado del formulario y armado del request
+// ---------------------------------------------------------------------------
+
+export interface OnboardingForm {
+  goals: string[]
+  interests: string[]
+  availableMinutes: number | null
+  energy: EnergyLevel | null
+  place: Place | null
+  social: SocialPreference | null
+  /** Minutos/día por categoría; las vacías o ≤ 0 se descartan al armar el request. */
+  categoryMinutes: Record<string, number | null>
+  peakWindows: TimeOfDay[]
+  triggers: string[]
+}
+
+export function createEmptyForm(): OnboardingForm {
+  return {
+    goals: [],
+    interests: [],
+    availableMinutes: null,
+    energy: null,
+    place: null,
+    social: null,
+    categoryMinutes: {},
+    peakWindows: [],
+    triggers: [],
+  }
+}
+
+/**
+ * Arma un `CoachRequest` a partir del formulario. Asume que ya validó (campos de
+ * enum y `availableMinutes` no nulos); descarta categorías con minutos ≤ 0 y fija
+ * el idioma a ES. Función pura.
+ */
+export function buildCoachRequest(form: OnboardingForm): CoachRequest {
+  const categories: CategoryUsage[] = USAGE_CATEGORIES.flatMap((category) => {
+    const minutes = form.categoryMinutes[category]
+    return minutes && minutes > 0
+      ? [{ category, minutes_per_day: minutes }]
+      : []
+  })
+
+  return {
+    profile: {
+      goals: form.goals,
+      interests: form.interests,
+      constraints: {
+        available_minutes: form.availableMinutes ?? 0,
+        energy: form.energy as EnergyLevel,
+        place: form.place as Place,
+        social: form.social as SocialPreference,
+      },
+      lang: "ES",
+    },
+    usage: {
+      categories,
+      peak_windows: form.peakWindows,
+      self_reported_triggers: form.triggers,
+    },
+  }
+}

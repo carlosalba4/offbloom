@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { Button } from "@/components/ui/button";
 
 export default function Home() {
@@ -17,9 +19,8 @@ export default function Home() {
           lugar de bloquear, te proponemos alternativas reales para cada momento.
         </p>
 
-        {/* El botón aún no navega: esta tarea es solo la base visual. */}
-        <Button size="lg" className="mt-2 px-8 text-base">
-          Empezar
+        <Button asChild size="lg" className="mt-2 px-8 text-base">
+          <Link href="/onboarding">Empezar</Link>
         </Button>
       </section>
     </main>
