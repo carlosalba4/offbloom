@@ -164,7 +164,7 @@ function EnumSelect<T extends string>({
   invalid,
 }: EnumSelectProps<T>) {
   return (
-    <Select value={value ?? undefined} onValueChange={(v) => onChange(v as T)}>
+    <Select value={value ?? ""} onValueChange={(v) => onChange(v as T)}>
       <SelectTrigger aria-invalid={invalid}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
