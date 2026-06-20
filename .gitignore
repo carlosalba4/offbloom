@@ -22,3 +22,6 @@ dist/
 .DS_Store
 .idea/
 .vscode/
+# Next.js / TypeScript artifacts
+next-env.d.ts
+*.tsbuildinfo
