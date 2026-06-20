@@ -52,6 +52,60 @@ export interface CoachRequest {
 }
 
 // ---------------------------------------------------------------------------
+// Tipos de la respuesta (espejo del contrato de la API — CoachResponse)
+// ---------------------------------------------------------------------------
+
+export interface Swap {
+  habit: string
+  alternative: string
+}
+
+export interface Citation {
+  source: string
+  chunk_id: string | null
+}
+
+export interface WeeklyPlan {
+  weekly_focus: string
+  intentions: string[]
+  swaps: Swap[]
+  citations: Citation[]
+}
+
+/** Corresponde al enum `ResourceType` del backend (src/coach/graph/state.py). */
+export type ResourceType =
+  | "MENTAL_HEALTH"
+  | "MEDICAL"
+  | "CRISIS_SUPPORT"
+  | "GENERAL"
+
+export interface DerivationMessage {
+  message: string
+  resource_type: ResourceType
+}
+
+export interface CuratedActivity {
+  title: string
+  reason: string
+  why_it_fits: string
+  replaces: string | null
+  source: string | null
+  duration_min: number | null
+  energy: EnergyLevel | null
+  place: Place | null
+  social: SocialPreference | null
+  moment: TimeOfDay | null
+}
+
+/** Respuesta completa del endpoint POST /coach. */
+export interface CoachResponse {
+  plan: WeeklyPlan | null
+  activities: CuratedActivity[]
+  derivation: DerivationMessage | null
+  errors: string[]
+}
+
+// ---------------------------------------------------------------------------
 // Catálogos de opciones (etiqueta español → valor de API)
 // ---------------------------------------------------------------------------
 
@@ -154,7 +208,7 @@ export function createEmptyForm(): OnboardingForm {
 /**
  * Arma un `CoachRequest` a partir del formulario. Asume que ya validó (campos de
  * enum y `availableMinutes` no nulos); descarta categorías con minutos ≤ 0 y fija
- * el idioma a ES. Función pura.
+ * el idioma a ES. Función pura, sin efectos secundarios.
  */
 export function buildCoachRequest(form: OnboardingForm): CoachRequest {
   const categories: CategoryUsage[] = USAGE_CATEGORIES.flatMap((category) => {
@@ -182,4 +236,39 @@ export function buildCoachRequest(form: OnboardingForm): CoachRequest {
       self_reported_triggers: form.triggers,
     },
   }
+}
+
+// ---------------------------------------------------------------------------
+// Cliente HTTP
+// ---------------------------------------------------------------------------
+
+/**
+ * Envía un `CoachRequest` al endpoint POST /coach y devuelve la respuesta
+ * tipada. La URL base se lee de `NEXT_PUBLIC_API_URL` (inlined en el bundle
+ * del cliente por Next.js en build time); si no está definida, cae al
+ * fallback de desarrollo local.
+ *
+ * Lanza un `Error` con mensaje legible si la respuesta HTTP no es 2xx.
+ */
+export async function postCoach(req: CoachRequest): Promise<CoachResponse> {
+  const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+  const res = await fetch(`${base}/coach`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  })
+
+  if (!res.ok) {
+    // Intenta extraer el campo `detail` que devuelve FastAPI en errores
+    let detail = res.statusText
+    try {
+      const json = (await res.json()) as { detail?: string }
+      if (typeof json.detail === "string") detail = json.detail
+    } catch {
+      // La respuesta no es JSON — usa statusText como mensaje
+    }
+    throw new Error(`Error ${res.status}: ${detail}`)
+  }
+
+  return res.json() as Promise<CoachResponse>
 }

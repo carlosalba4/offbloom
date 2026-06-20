@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Plus, X } from "lucide-react"
+import { Loader2, Plus, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -28,15 +28,18 @@ import {
   GOAL_OPTIONS,
   INTEREST_OPTIONS,
   PLACE_OPTIONS,
+  postCoach,
   SOCIAL_OPTIONS,
   TIME_OPTIONS,
   TRIGGER_OPTIONS,
   USAGE_CATEGORIES,
   type CoachRequest,
+  type CoachResponse,
   type EnergyLevel,
   type EnumOption,
   type OnboardingForm,
   type Place,
+  type ResourceType,
   type SocialPreference,
   type TimeOfDay,
 } from "@/lib/coach"
@@ -214,13 +217,180 @@ function validate(form: OnboardingForm): FormErrors {
 }
 
 // ---------------------------------------------------------------------------
+// Estado de la petición al coach
+// ---------------------------------------------------------------------------
+
+type RequestStatus = "idle" | "loading" | "success" | "error"
+
+// El coach tarda decenas de segundos; rotamos estos mensajes durante la espera.
+const LOADING_MESSAGES = [
+  "Analizando tus hábitos…",
+  "Buscando alternativas para ti…",
+  "Preparando tu plan…",
+] as const
+
+// Etiquetas legibles para el tipo de recurso de una derivación.
+const RESOURCE_TYPE_LABELS: Record<ResourceType, string> = {
+  MENTAL_HEALTH: "Salud mental",
+  MEDICAL: "Atención médica",
+  CRISIS_SUPPORT: "Apoyo en crisis",
+  GENERAL: "Recurso general",
+}
+
+// ---------------------------------------------------------------------------
+// Sección de resultado (volcado provisional — la pantalla bonita es otro paso)
+// ---------------------------------------------------------------------------
+
+/** Volcado legible del `CoachResponse`. Deliberadamente sencillo y provisional. */
+function ResultDump({ response }: { response: CoachResponse }) {
+  const { plan, activities, derivation, errors } = response
+
+  return (
+    <div className="flex flex-col gap-6">
+      {derivation && (
+        <div className="flex flex-col gap-2 rounded-lg border border-amber-400 bg-amber-50 p-4 text-amber-900">
+          <span className="text-xs font-semibold uppercase tracking-wide">
+            {RESOURCE_TYPE_LABELS[derivation.resource_type]}
+          </span>
+          <p className="text-sm leading-relaxed">{derivation.message}</p>
+        </div>
+      )}
+
+      {!derivation && plan && (
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Foco de la semana
+            </span>
+            <p className="text-base font-medium text-foreground">
+              {plan.weekly_focus}
+            </p>
+          </div>
+
+          {plan.intentions.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Intenciones
+              </span>
+              <ul className="list-disc pl-5 text-sm text-foreground">
+                {plan.intentions.map((intention) => (
+                  <li key={intention}>{intention}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {plan.swaps.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Sustituciones
+              </span>
+              <ul className="flex flex-col gap-1 text-sm text-foreground">
+                {plan.swaps.map((swap) => (
+                  <li key={`${swap.habit}-${swap.alternative}`}>
+                    <span className="font-medium">{swap.habit}</span> →{" "}
+                    {swap.alternative}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {plan.citations.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Fuentes
+              </span>
+              <ul className="list-disc pl-5 text-xs text-muted-foreground">
+                {plan.citations.map((citation, i) => (
+                  <li key={`${citation.source}-${citation.chunk_id ?? i}`}>
+                    {citation.source}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!derivation && activities.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Actividades propuestas
+          </span>
+          <ul className="flex flex-col gap-3">
+            {activities.map((activity) => (
+              <li
+                key={activity.title}
+                className="flex flex-col gap-1 rounded-lg border border-border p-3"
+              >
+                <span className="text-sm font-medium text-foreground">
+                  {activity.title}
+                  {activity.duration_min != null && (
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">
+                      {activity.duration_min} min
+                    </span>
+                  )}
+                </span>
+                <p className="text-sm text-muted-foreground">
+                  {activity.why_it_fits}
+                </p>
+                {activity.replaces && (
+                  <p className="text-xs text-muted-foreground">
+                    Sustituye a: {activity.replaces}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {errors.length > 0 && (
+        <div className="flex flex-col gap-1 rounded-lg border border-destructive bg-destructive/5 p-3 text-sm text-destructive">
+          {errors.map((err) => (
+            <p key={err}>{err}</p>
+          ))}
+        </div>
+      )}
+
+      {/* Respaldo: volcado crudo del JSON mientras no exista la pantalla final. */}
+      <details className="rounded-lg border border-border">
+        <summary className="cursor-pointer px-4 py-2 text-sm text-muted-foreground">
+          Ver respuesta completa (JSON)
+        </summary>
+        <pre className="overflow-x-auto rounded-b-lg bg-muted p-4 text-xs leading-relaxed text-foreground">
+          {JSON.stringify(response, null, 2)}
+        </pre>
+      </details>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Pantalla
 // ---------------------------------------------------------------------------
 
 export default function OnboardingPage() {
   const [form, setForm] = React.useState<OnboardingForm>(createEmptyForm)
   const [errors, setErrors] = React.useState<FormErrors>({})
-  const [request, setRequest] = React.useState<CoachRequest | null>(null)
+  const [status, setStatus] = React.useState<RequestStatus>("idle")
+  const [response, setResponse] = React.useState<CoachResponse | null>(null)
+  const [errorMsg, setErrorMsg] = React.useState<string | null>(null)
+  const [lastRequest, setLastRequest] = React.useState<CoachRequest | null>(null)
+  const [loadingMsg, setLoadingMsg] = React.useState<string>(LOADING_MESSAGES[0])
+
+  // Rota el mensaje de carga mientras esperamos al coach. El mensaje inicial se
+  // fija en sendRequest; aquí solo avanzamos al siguiente cada intervalo.
+  React.useEffect(() => {
+    if (status !== "loading") return
+    let index = 0
+    const id = window.setInterval(() => {
+      index = (index + 1) % LOADING_MESSAGES.length
+      setLoadingMsg(LOADING_MESSAGES[index])
+    }, 3500)
+    return () => window.clearInterval(id)
+  }, [status])
 
   function toggleInList(key: "goals" | "interests" | "triggers", value: string) {
     setForm((prev) => {
@@ -270,18 +440,36 @@ export default function OnboardingPage() {
     }))
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  /** Envía el request al coach y gestiona los estados de carga/éxito/error. */
+  async function sendRequest(req: CoachRequest) {
+    setLastRequest(req)
+    setLoadingMsg(LOADING_MESSAGES[0])
+    setStatus("loading")
+    setErrorMsg(null)
+    setResponse(null)
+    try {
+      const result = await postCoach(req)
+      setResponse(result)
+      setStatus("success")
+    } catch (err) {
+      setErrorMsg(
+        err instanceof Error
+          ? err.message
+          : "No hemos podido contactar con el coach. Inténtalo de nuevo."
+      )
+      setStatus("error")
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const nextErrors = validate(form)
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) {
-      setRequest(null)
       return
     }
     const built = buildCoachRequest(form)
-    // Paso intermedio: aún no llamamos a la API; verificamos el objeto.
-    console.log("CoachRequest:", built)
-    setRequest(built)
+    await sendRequest(built)
   }
 
   return (
@@ -482,25 +670,65 @@ export default function OnboardingPage() {
             </CardContent>
           </Card>
 
-          <Button type="submit" size="lg" className="self-center px-8 text-base">
+          <Button
+            type="submit"
+            size="lg"
+            className="self-center px-8 text-base"
+            disabled={status === "loading"}
+          >
             Generar mi plan
           </Button>
         </form>
 
-        {/* Previsualización del request (paso intermedio: aún no se llama a la API). */}
-        {request && (
+        {/* Estado de carga: el coach tarda decenas de segundos. */}
+        {status === "loading" && (
           <Card>
+            <CardContent className="flex items-center gap-3 py-6">
+              <Loader2 className="size-5 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground" aria-live="polite">
+                {loadingMsg}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Estado de error: amable y con opción de reintentar. */}
+        {status === "error" && (
+          <Card className="border-destructive">
             <CardHeader>
-              <CardTitle>Vista previa del CoachRequest</CardTitle>
+              <CardTitle>No hemos podido generar tu plan</CardTitle>
               <CardDescription>
-                Esto es lo que se enviará a la API en el siguiente paso. También
-                aparece en la consola del navegador.
+                {errorMsg ?? "Algo ha fallado al contactar con el coach."}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <pre className="overflow-x-auto rounded-lg bg-muted p-4 text-xs leading-relaxed text-foreground">
-                {JSON.stringify(request, null, 2)}
-              </pre>
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={() => {
+                  if (lastRequest) void sendRequest(lastRequest)
+                }}
+                disabled={!lastRequest}
+              >
+                Reintentar
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Resultado (volcado provisional). */}
+        {status === "success" && response && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Tu plan del coach</CardTitle>
+              <CardDescription>
+                Vista provisional de la respuesta. La pantalla final llega en el
+                siguiente paso.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResultDump response={response} />
             </CardContent>
           </Card>
         )}
