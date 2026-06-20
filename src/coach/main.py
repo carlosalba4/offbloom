@@ -7,6 +7,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict
 
 from coach.config import settings
@@ -92,6 +93,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="Wellbeing Coach API", version="0.1.0", lifespan=lifespan)
+
+# Permite que el frontend en desarrollo (Next.js en :3000) llame a la API.
+# Se restringe al origen exacto para no abrir la API a cualquier dominio.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+)
 
 
 # ---------------------------------------------------------------------------
