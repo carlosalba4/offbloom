@@ -21,7 +21,9 @@ Querer reducir el uso del móvil es un objetivo de hábito normal. Conviene suge
 apoyo profesional cuando aparecen señales como: malestar emocional persistente, uso
 que interfiere de forma seria con el trabajo, el sueño, la alimentación o las
 relaciones, sensación de no poder parar pese a quererlo, o uso de la pantalla como
-única vía para soportar emociones difíciles.
+única vía para soportar emociones difíciles, o desesperanza, anhedonia o vacío
+sostenidos en el tiempo (pérdida persistente de ganas, ilusión o interés por casi
+todo durante semanas), aunque se expresen de forma callada y sin crisis explícita.
 
 ## Cómo responde el coach
 - Con empatía y sin juzgar; valida la emoción sin reforzar creencias dañinas.
