@@ -69,8 +69,3 @@ veredicto explicita cuál de las dos situaciones aplica.
   hace la suite inservible como señal (falla por motivos que no son hueco real).
 - **Asserts deterministas por caso**: imposibles con un LLM no determinista; medir
   tasas sobre repeticiones es lo correcto.
-
-## Verificación
-- Ejecuta `ruff check scripts/eval_safety_gate.py` y deja limpio.
-- Verifica con `python -c` / `python -m py_compile` que el módulo compila (NO ejecutes la eval completa: requiere Ollama sirviendo qwen3:8b, que probablemente no está disponible aquí). Si puedes, importa el helper `per_case_fn` y pruébalo con datos sintéticos para confirmar la lógica del veredicto (parpadeo 1/5 → PASS tolerado; 2/5 → FAIL).
-- NO hagas commit.
