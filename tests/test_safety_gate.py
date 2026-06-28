@@ -225,3 +225,6 @@ def test_derivation_message_contains_no_digits(reason: str) -> None:
     # Assert
     message: str = result["derivation"].message  # type: ignore[index]
     assert not any(c.isdigit() for c in message)
+
+def test_ci_deteccion_temporal():
+    assert 1 == 2  # CHIVATO TEMPORAL: comprobar que el CI se pone rojo
