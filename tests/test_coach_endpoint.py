@@ -236,9 +236,7 @@ def test_derivation_path_returns_200_with_derivation_populated_and_plan_none(
         message="Gracias por compartir esto. Te recomendamos hablar con un profesional.",
         resource_type=ResourceType.MENTAL_HEALTH,
     )
-    client, _ = graph_client(
-        returns={"derivation": derivation_msg, "activities": [], "errors": []}
-    )
+    client, _ = graph_client(returns={"derivation": derivation_msg, "activities": [], "errors": []})
     payload = _valid_payload()
 
     # Act
@@ -262,9 +260,7 @@ def test_graph_error_returns_502_with_safe_detail_no_internal_leakage(
     graph_client,
 ) -> None:
     # Arrange — simulate an internal graph failure with sensitive info in the message
-    client, _ = graph_client(
-        raises=RuntimeError("ollama timeout en _internal_node:secreto")
-    )
+    client, _ = graph_client(raises=RuntimeError("ollama timeout en _internal_node:secreto"))
     payload = _valid_payload()
 
     # Act

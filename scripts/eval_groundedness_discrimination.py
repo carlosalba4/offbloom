@@ -310,10 +310,7 @@ def _print_verdict(scored: list[ScoredControl]) -> None:
     ordered = good >= mixed >= fabricated
     gap = good - fabricated
 
-    print(
-        "Scores: "
-        f"real-bueno={good:.2f}  mixto={mixed:.2f}  inventado={fabricated:.2f}"
-    )
+    print(f"Scores: real-bueno={good:.2f}  mixto={mixed:.2f}  inventado={fabricated:.2f}")
     if ordered:
         print("Orden esperado (real-bueno >= mixto >= inventado): SÍ se cumple.")
     else:

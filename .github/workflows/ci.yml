@@ -3,17 +3,28 @@ name: ci
 on:
   push:
   pull_request:
-    branches: [main]
+    branches: [master]
 
 jobs:
   quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+
+      - name: Install uv (con caché de dependencias)
+        uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-      - run: uv sync --frozen || uv sync
-      - run: uv run ruff check .
-      - run: uv run ruff format --check .
-      - run: uv run pytest -q
+          python-version: "3.12"
+
+      - name: Sincronizar entorno reproducible desde uv.lock
+        run: uv sync --frozen
+
+      - name: Ruff lint
+        run: uv run ruff check .
+
+      - name: Ruff format check
+        run: uv run ruff format --check .
+
+      - name: Pytest (solo tests/, sin LLM)
+        run: uv run pytest tests/ -q

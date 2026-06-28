@@ -220,8 +220,7 @@ def print_per_case_table(scored: list[ScoredRun], threshold: float) -> None:
     reason_w = 60
 
     header = (
-        f"{'CASE':<{label_w}}  {'SCORE':<{score_w}}  "
-        f"{'CHUNKS':<{chunks_w}}  {'REASON':<{reason_w}}"
+        f"{'CASE':<{label_w}}  {'SCORE':<{score_w}}  {'CHUNKS':<{chunks_w}}  {'REASON':<{reason_w}}"
     )
     print_section("RESULTADO POR CORRIDA (con plan)")
     print(header)
