@@ -30,7 +30,6 @@ from coach.graph.state import (
     Lang,
     Place,
     SocialPreference,
-    TimeOfDay,
     UserProfile,
 )
 from coach.llm import get_chat_model
@@ -51,7 +50,6 @@ Fundamentación. Para cada elección rellena:
 - why_it_fits: por qué encaja con su contexto (restricciones de tiempo, energía,
   lugar y social; sus disparadores; las necesidades que cubría el uso).
 - replaces: el hábito o disparador concreto que sustituye, si aplica (o nulo).
-- moment: el momento del día más adecuado, si aplica (o nulo).
 Apóyate solo en el análisis y el contexto que recibes; no inventes datos.
 
 Seguridad (dominio sensible). No diagnosticas, no das consejo clínico, ni
@@ -105,7 +103,6 @@ class _ActivityChoice(BaseModel):
     reason: str
     why_it_fits: str
     replaces: str | None = None
-    moment: TimeOfDay | None = None
 
 
 class _CuratorOutput(BaseModel):
@@ -218,8 +215,15 @@ def _to_curated(choice: _ActivityChoice, rid: RetrievedActivity, lang: Lang) -> 
     """Construye una `CuratedActivity` combinando elección del LLM y candidato.
 
     Campos factuales (title, duration_min, energy, place, social, source) desde
-    el `RetrievedActivity`; campos explicativos (reason, why_it_fits, replaces,
-    moment) desde la elección del LLM.
+    el `RetrievedActivity`; campos explicativos (reason, why_it_fits, replaces)
+    desde la elección del LLM.
+
+    `moment` se emite siempre como `None` de forma deliberada: el corpus solo
+    distingue {manana, tarde, noche} y el LLM, sin señal del contexto temporal
+    del usuario, traducía el token "tarde" a `AFTERNOON` aunque la persona fuese
+    nocturna (dato falso). El arreglo completo es cablear `peak_windows` (de
+    `UsageData`) al Curador para desambiguar tarde/atardecer/noche, diferido a la
+    fase de expansión. Ver docs/known-issues.md.
     """
     return CuratedActivity(
         title=rid.name_es if lang == Lang.ES else rid.name_en,
@@ -231,7 +235,7 @@ def _to_curated(choice: _ActivityChoice, rid: RetrievedActivity, lang: Lang) -> 
         energy=_ENERGY_INVERSE.get(rid.energy),
         place=_PLACE_INVERSE.get(rid.place, Place.ANYWHERE),
         social=_SOCIAL_INVERSE.get(rid.social, SocialPreference.ANY),
-        moment=choice.moment,
+        moment=None,
     )
 
 

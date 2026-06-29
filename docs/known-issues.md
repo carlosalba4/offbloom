@@ -8,14 +8,21 @@ funcionamiento del coach; se indica en cada caso el impacto real.
 ## Datos
 
 ### Mapeo de `moment` en actividades
-- **Qué es:** algunas actividades del corpus se etiquetan con un momento del día que
-  no encaja del todo con el contexto (p. ej. `AFTERNOON` en escenarios nocturnos).
-- **Causa:** es una costura del corpus de actividades (`data/corpus/actividades.jsonl`),
-  que no distingue con finura entre *afternoon*, *evening* y *night*. El curador
-  (`src/coach/graph/nodes/curator.py`) propaga el `moment` tal y como viene del dato.
+- **Qué es:** el momento del día de las actividades no se alinea con el contexto
+  temporal del usuario (p. ej. el LLM traducía el token español "tarde" del corpus
+  a `AFTERNOON` aunque la persona fuese nocturna).
+- **Causa:** doble. (1) El corpus de actividades (`data/corpus/actividades.jsonl`)
+  solo distingue `{manana, tarde, noche}`, sin separar *afternoon*/*evening*. (2) El
+  contexto temporal del usuario (`peak_windows`, en `UsageData`) nunca llega al
+  Curador, así que el LLM elegía el momento sin señal para desambiguar.
 - **Impacto:** cosmético. La actividad sugerida sigue siendo apropiada; solo la
-  etiqueta del momento puede sonar imprecisa.
-- **Plan:** pulir el corpus de actividades para afinar el etiquetado temporal.
+  etiqueta del momento podía sonar imprecisa.
+- **Mitigación actual (parche):** el Curador (`src/coach/graph/nodes/curator.py`,
+  `_to_curated`) emite siempre `moment = None` en lugar de un valor adivinado; así no
+  se muestra un dato falso (el frontend omite el badge cuando es `None`).
+- **Arreglo completo (diferido a la fase de expansión):** cablear `peak_windows`
+  (de `UsageData`) al Curador para desambiguar tarde/atardecer/noche y, opcionalmente,
+  pulir el etiquetado temporal del corpus.
 
 ## Frontend
 
