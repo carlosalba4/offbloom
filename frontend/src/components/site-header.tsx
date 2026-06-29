@@ -10,14 +10,14 @@ export function SiteHeader() {
       <div className="container mx-auto flex h-16 max-w-5xl items-center gap-3 px-6">
         <Image
           src="/Logo.png"
-          alt="Logo de DetoxApp"
+          alt="Logo de OffBloom"
           width={36}
           height={36}
           priority
           className="h-9 w-9 object-contain"
         />
         <span className="font-serif text-xl font-semibold tracking-tight text-foreground">
-          DetoxApp
+          OffBloom
         </span>
       </div>
     </header>

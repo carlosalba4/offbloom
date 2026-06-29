@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fraunces, Manrope } from "next/font/google";
 import "./globals.css";
 import { SiteHeader } from "@/components/site-header";
@@ -18,10 +18,12 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "DetoxApp — Sustituir, no prohibir",
+  title: "OffBloom — Sustituir, no prohibir",
   description:
     "Coach de bienestar digital que sustituye el scroll por alternativas offline contextualizadas. Privacy-first.",
 };
+
+export const viewport: Viewport = { themeColor: "#2A9D8F" };
 
 export default function RootLayout({
   children,
