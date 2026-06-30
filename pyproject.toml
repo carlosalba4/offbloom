@@ -17,6 +17,8 @@ dependencies = [
     "chromadb>=0.5",
     "langfuse>=2.50",             # agent observability / tracing
     "httpx>=0.27",
+    "sqlalchemy>=2.0.36",
+    "alembic>=1.14.0",
 ]
 # To use other cloud providers, add the matching package and set LLM_PROVIDER:
 #   Gemini  -> langchain-google-genai   (LLM_PROVIDER=google)
@@ -32,6 +34,9 @@ dev = [
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+# Las migraciones las genera Alembic con su propio estilo (typing.Union, imports
+# sin ordenar); no tiene sentido lintarlas en cada autogenerate.
+extend-exclude = ["alembic/versions"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

@@ -13,6 +13,10 @@ __pycache__/
 data/*
 !data/corpus/
 *.log
+# Base de datos local (SQLite); no entra en git
+*.db
+*.db-shm
+*.db-wal
 # node / next
 node_modules/
 .next/

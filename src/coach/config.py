@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     chroma_dir: str = "./.chroma"
     corpus_dir: str = "./data/corpus"
 
+    # Persistencia (SQLite en desarrollo; migrable a Postgres sin reescritura)
+    database_url: str = "sqlite:///./offbloom.db"
+
     # Observability (optional)
     langfuse_public_key: str | None = None
     langfuse_secret_key: str | None = None
