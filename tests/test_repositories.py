@@ -217,6 +217,7 @@ class TestProfileRepoUpsert:
 
         # Assert — solo debe existir 1 perfil para ese usuario
         from coach.db.models.profile import Profile
+
         count = db_session.query(Profile).filter(Profile.user_id == user.id).count()
         assert count == 1
 

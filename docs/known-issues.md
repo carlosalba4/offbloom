@@ -81,3 +81,38 @@ funcionamiento del coach; se indica en cada caso el impacto real.
 - **Impacto:** si se arranca desde otro directorio, el RAG no encuentra el índice y
   las búsquedas devuelven resultados vacíos.
 - **Plan:** usar rutas configurables/absolutas en la fase de despliegue.
+
+## Hardening de autenticación (follow-ups de auditoría)
+
+Mejoras de seguridad identificadas en la auditoría de la capa de autenticación y
+diferidas de forma consciente. La seguridad básica (hashing argon2, rotación de
+refresh tokens, timing constante en login) ya está cubierta; lo siguiente es
+endurecimiento adicional o decisiones de producto pendientes.
+
+### Sin detección de reuso de refresh token
+- **Qué es:** la rotación de refresh tokens funciona (un refresh ya revocado
+  presentado de nuevo devuelve 401), pero el sistema no detecta el *reuso* de un
+  token robado para invalidar toda la cadena de sesión del usuario.
+- **Causa:** existe `revoke_all_for_user` en el repositorio
+  (`src/coach/db/repositories.py`), pero aún no está cableado a esta lógica.
+- **Impacto:** hardening avanzado; la seguridad básica (rotación) ya está.
+- **Plan:** implementar detección de reuso —al recibir un refresh ya revocado,
+  revocar todos los tokens del usuario— como mejora futura de hardening.
+
+### `/register` revela si un email ya está registrado
+- **Qué es:** el endpoint de registro devuelve 409 con un mensaje claro cuando el
+  email ya existe, lo que permite enumerar qué emails están registrados.
+- **Causa:** trade-off consciente: se prioriza la claridad de UX (el usuario sabe
+  que ya tiene cuenta) sobre la privacidad estricta.
+- **Impacto:** menor; en un producto "privacy-first" conviene reconsiderarlo.
+- **Plan:** decisión de producto a revisar; una alternativa sería un flujo que no
+  confirme la existencia del email.
+
+### Origen CORS hardcodeado
+- **Qué es:** el origen permitido en CORS está fijado a `localhost:3000` en
+  `src/coach/main.py`, en lugar de venir de la configuración (`Settings`).
+- **Causa:** roza el principio de "nada hardcodeado" del proyecto.
+- **Impacto:** ninguno hoy (desarrollo local; se usa Bearer en header, sin
+  `allow_credentials`).
+- **Plan:** mover el origen a `Settings` en la fase de despliegue, cuando el
+  origen de producción tenga que ser configurable.

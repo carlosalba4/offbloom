@@ -11,11 +11,13 @@ El acceso a un recurso ajeno devuelve None → el handler responde 404 (no 403).
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from sqlalchemy.orm import Session
 
 from coach.db.models.plan import Plan
 from coach.db.models.profile import Profile
+from coach.db.models.refresh_token import RefreshToken
 from coach.db.models.user import User
 
 
@@ -112,11 +114,7 @@ class PlanRepo:
         Filtrar por AMBOS campos garantiza el aislamiento entre usuarios:
         un plan ajeno devuelve None → el handler responde 404 (ADR-007).
         """
-        return (
-            self.db.query(Plan)
-            .filter(Plan.id == plan_id, Plan.user_id == user_id)
-            .first()
-        )
+        return self.db.query(Plan).filter(Plan.id == plan_id, Plan.user_id == user_id).first()
 
     def list_by_user(
         self,
@@ -136,3 +134,54 @@ class PlanRepo:
             .offset(offset)
             .all()
         )
+
+
+class RefreshTokenRepo:
+    """Operaciones sobre la tabla `refresh_tokens`.
+
+    Solo persiste el hash del token (nunca el valor en claro), y expone las
+    operaciones necesarias para la rotación y revocación de sesiones (ADR-007).
+    """
+
+    def __init__(self, db: Session) -> None:
+        self.db = db
+
+    def create(self, user_id: str, token_hash: str, expires_at: datetime) -> RefreshToken:
+        """Persiste un refresh token nuevo a partir de su hash.
+
+        No hace commit; el handler es responsable.
+        """
+        refresh_token = RefreshToken(
+            id=str(uuid.uuid4()),
+            user_id=user_id,
+            token_hash=token_hash,
+            expires_at=expires_at,
+        )
+        self.db.add(refresh_token)
+        self.db.flush()
+        self.db.refresh(refresh_token)
+        return refresh_token
+
+    def get_by_hash(self, token_hash: str) -> RefreshToken | None:
+        """Busca un refresh token por su hash almacenado."""
+        return self.db.query(RefreshToken).filter(RefreshToken.token_hash == token_hash).first()
+
+    def revoke(self, token: RefreshToken) -> None:
+        """Marca un refresh token como revocado (no elimina el registro)."""
+        token.revoked = True
+        self.db.flush()
+
+    def revoke_all_for_user(self, user_id: str) -> None:
+        """Revoca todos los refresh tokens activos de un usuario.
+
+        Útil para invalidar todas las sesiones (p.ej. tras un cambio de
+        contraseña o una detección de compromiso de cuenta).
+        """
+        tokens = (
+            self.db.query(RefreshToken)
+            .filter(RefreshToken.user_id == user_id, RefreshToken.revoked.is_(False))
+            .all()
+        )
+        for token in tokens:
+            token.revoked = True
+        self.db.flush()

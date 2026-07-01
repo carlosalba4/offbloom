@@ -19,6 +19,9 @@ dependencies = [
     "httpx>=0.27",
     "sqlalchemy>=2.0.36",
     "alembic>=1.14.0",
+    "pyjwt>=2.9",
+    "argon2-cffi>=23.1",
+    "email-validator>=2.2",
 ]
 # To use other cloud providers, add the matching package and set LLM_PROVIDER:
 #   Gemini  -> langchain-google-genai   (LLM_PROVIDER=google)
@@ -40,6 +43,11 @@ extend-exclude = ["alembic/versions"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+# FastAPI usa Depends(...) como valor por defecto de forma idiomática (no es
+# una llamada mutable con efectos secundarios reales); se excluye de B008.
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Body"]
 
 [build-system]
 requires = ["hatchling"]

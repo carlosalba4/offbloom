@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict
 
+from coach.api.auth_router import router as auth_router
 from coach.config import settings
 from coach.graph.graph import build_coach_graph
 from coach.graph.state import (
@@ -99,9 +100,11 @@ app = FastAPI(title="Wellbeing Coach API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
-    allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allow_headers=["Content-Type", "Authorization"],
 )
+
+app.include_router(auth_router)
 
 
 # ---------------------------------------------------------------------------

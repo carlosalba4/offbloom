@@ -6,14 +6,22 @@ nunca toca offbloom.db ni ningún archivo de desarrollo.
 
 from __future__ import annotations
 
-import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+import os
 
-import coach.db.models  # noqa: F401  — registra todas las tablas en Base.metadata
-from coach.db.base import Base
-from coach.graph.state import (
+# Debe fijarse ANTES de cualquier `import coach.*`: Settings() se instancia al
+# importar coach.config y jwt_secret_key es obligatorio (sin default).
+os.environ.setdefault("JWT_SECRET_KEY", "test-secret-not-for-production-0123456789")
+
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy.orm import Session, sessionmaker  # noqa: E402
+from sqlalchemy.pool import StaticPool  # noqa: E402
+
+import coach.db.models  # noqa: E402, F401  — registra todas las tablas en Base.metadata
+from coach.api import deps  # noqa: E402
+from coach.db.base import Base  # noqa: E402
+from coach.graph.state import (  # noqa: E402
     CategoryUsage,
     Constraints,
     EnergyLevel,
@@ -46,6 +54,22 @@ def db_session() -> Session:
     finally:
         db.close()
         Base.metadata.drop_all(engine)
+
+
+@pytest.fixture()
+def client(db_session: Session) -> TestClient:
+    """Cliente HTTP con get_db sobreescrito para usar la sesión en memoria.
+
+    TestClient se instancia sin entrar en el context manager async, por lo
+    que el lifespan (compilación del grafo del coach) nunca se dispara.
+    """
+    from coach.main import app  # noqa: PLC0415 — import perezoso, tras fijar JWT_SECRET_KEY
+
+    app.dependency_overrides[deps.get_db] = lambda: db_session
+    try:
+        yield TestClient(app)
+    finally:
+        app.dependency_overrides.clear()
 
 
 # ---------------------------------------------------------------------------

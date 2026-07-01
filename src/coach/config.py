@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,6 +31,24 @@ class Settings(BaseSettings):
 
     # Persistencia (SQLite en desarrollo; migrable a Postgres sin reescritura)
     database_url: str = "sqlite:///./offbloom.db"
+
+    # Autenticación JWT (ADR-007). jwt_secret_key es obligatorio: sin default
+    # para forzar su configuración explícita en cada entorno (dev/CI/prod).
+    jwt_secret_key: str
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 14
+
+    @field_validator("jwt_secret_key")
+    @classmethod
+    def _validate_jwt_secret_key_length(cls, v: str) -> str:
+        """Exige un secreto suficientemente largo (>=32 bytes) para HS256."""
+        if len(v.encode()) < 32:
+            raise ValueError(
+                "JWT_SECRET_KEY debe tener al menos 32 bytes; genera uno con: "
+                'python -c "import secrets; print(secrets.token_urlsafe(64))"'
+            )
+        return v
 
     # Observability (optional)
     langfuse_public_key: str | None = None

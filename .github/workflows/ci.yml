@@ -28,3 +28,6 @@ jobs:
 
       - name: Pytest (solo tests/, sin LLM)
         run: uv run pytest tests/ -q
+        env:
+          # Debe tener >=32 bytes (lo exige el validador de Settings.jwt_secret_key)
+          JWT_SECRET_KEY: "ci-test-secret-not-for-production"
