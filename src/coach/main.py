@@ -35,11 +35,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="Wellbeing Coach API", version="0.1.0", lifespan=lifespan)
 
-# Permite que el frontend en desarrollo (Next.js en :3000) llame a la API.
-# Se restringe al origen exacto para no abrir la API a cualquier dominio.
+# Permite que el frontend llame a la API con credenciales (la cookie httpOnly
+# del refresh token viaja en cada petición). allow_credentials=True exige un
+# origen explícito -- nunca "*" -- por eso se restringe a settings.frontend_origin.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[settings.frontend_origin],
+    allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
     allow_headers=["Content-Type", "Authorization"],
 )

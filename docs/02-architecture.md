@@ -167,10 +167,17 @@ con `model_dump(mode="json")`; al leer se reconstruye con `Model.model_validate(
 - **Servicio** (`auth/service.py`): `register` / `authenticate` y **rotación** de
   refresh tokens.
 - **Modelo de tokens**: **access token** corto (vida `access_token_expire_minutes`,
-  guardado solo en memoria del cliente) + **refresh token ROTATIVO persistido en DB**
-  (tabla `RefreshToken`). Esto habilita **logout real** y "cerrar sesión en todos los
-  dispositivos" desde Fase 1: revocar o rotar el refresh en DB invalida la sesión. Ver
-  ADR-007.
+  guardado solo en memoria del cliente, se manda por `Authorization: Bearer`) +
+  **refresh token ROTATIVO persistido en DB** (tabla `RefreshToken`, solo su hash). El
+  refresh **ya no viaja en el body**: vive y viaja en una **cookie httpOnly** (`Path=/auth`,
+  `Max-Age` alineado con `refresh_token_expire_days`; `Secure`/`SameSite`/`Domain` por env),
+  fuera del alcance de JS. La rotación/revocación en DB es **agnóstica al transporte** y no
+  cambia: habilita **logout real** y "cerrar sesión en todos los dispositivos" desde Fase 1.
+  Ver ADR-007 (modelo de tokens) y **ADR-011** (transporte del refresh en cookie httpOnly).
+- **Recuperación de sesión (cold-start)**: al arrancar el frontend sin access en memoria,
+  `POST /auth/refresh` (lee la cookie httpOnly) → access nuevo → `GET /auth/me` → user.
+  `GET /auth/me` (Bearer → `{id, email, has_profile}`) es la **fuente de hidratación** de
+  la sesión. Ver ADR-011.
 - **`get_current_user`** (en `api/deps.py`): valida el access token, carga el `User` y
   lo inyecta en el handler.
 - **`password_hash` es NULLABLE**, preparado para login OAuth futuro (ADR-009, Fase 4)
@@ -187,10 +194,16 @@ una vez y lo deja en `app.state.graph` (igual que hoy). Los routers viven en `ap
 
 | Router               | Responsabilidad                                  |
 | -------------------- | ------------------------------------------------ |
-| `auth_router.py`     | register / login / refresh / logout              |
+| `auth_router.py`     | register / login / refresh / logout / me         |
 | `profile_router.py`  | onboarding y lectura/edición del perfil          |
 | `plans_router.py`    | `POST /plans` (sustituye a `/coach`), historial  |
 | `progress_router.py` | marcar actividad PENDING/DONE/SKIPPED            |
+
+**Contrato de auth** (ver ADR-011): `TokenResponse` es **access-only**
+(`{access_token, token_type}`); el refresh sale/entra por **cookie httpOnly**, no por el
+body. `POST /auth/refresh` y `POST /auth/logout` van **sin body** (leen la cookie): el
+primero rota la cookie y devuelve un access nuevo, el segundo la borra. `GET /auth/me`
+(Bearer) es la fuente de **hidratación** de la sesión.
 
 **Handlers finos**: validan el body (schemas de `api/schemas.py`), resuelven
 dependencias y delegan. **Dónde se inyecta la sesión**: `get_db` (en `api/deps.py`,
@@ -199,8 +212,10 @@ reexportando `db.session.get_db`) entra **por request** como dependencia de Fast
 convivencia mantiene la frontera: el router pide la sesión a `db/`, invoca el grafo de
 `graph/` y traduce con los mappers; el grafo nunca ve la sesión.
 
-CORS se amplía respecto al MVP: se habilitan métodos **PUT/PATCH/DELETE** y el header
-**Authorization**.
+CORS se amplía respecto al MVP: se habilitan métodos **PUT/PATCH/DELETE**, el header
+**Authorization** y **`allow_credentials=True`** con **origen explícito** desde config
+(necesario para que el navegador envíe/reciba la cookie httpOnly del refresh en el
+transporte directo cross-origin; incompatible con origen comodín). Ver ADR-011.
 
 ## 10. Modelo de datos
 

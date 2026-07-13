@@ -50,6 +50,26 @@ class Settings(BaseSettings):
             )
         return v
 
+    # Cookie del refresh token (transporte httpOnly, cross-origin directo).
+    cookie_refresh_name: str = "offbloom_refresh"
+    cookie_secure: bool = False
+    cookie_samesite: str = "lax"
+    cookie_domain: str | None = None
+    cookie_path: str = "/auth"
+    # Origen del frontend, usado para restringir CORS (allow_credentials=True
+    # exige un origen explícito; nunca "*").
+    frontend_origin: str = "http://localhost:3000"
+
+    @field_validator("cookie_samesite")
+    @classmethod
+    def _validate_cookie_samesite(cls, v: str) -> str:
+        """Normaliza a minúsculas y exige un valor válido para el atributo SameSite."""
+        normalized = v.lower()
+        valid_values = {"lax", "strict", "none"}
+        if normalized not in valid_values:
+            raise ValueError(f"COOKIE_SAMESITE debe ser uno de {sorted(valid_values)}")
+        return normalized
+
     # Observability (optional)
     langfuse_public_key: str | None = None
     langfuse_secret_key: str | None = None

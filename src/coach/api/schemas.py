@@ -31,27 +31,14 @@ class LoginRequest(BaseModel):
     password: str = Field(max_length=128)
 
 
-class RefreshRequest(BaseModel):
-    """Cuerpo de la petición de renovación de tokens."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    refresh_token: str
-
-
-class LogoutRequest(BaseModel):
-    """Cuerpo de la petición de logout."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    refresh_token: str
-
-
 class TokenResponse(BaseModel):
-    """Par de tokens emitido tras login o refresh."""
+    """Access token emitido tras login o refresh.
+
+    El refresh token ya no viaja en el body: se transporta en una cookie
+    httpOnly (ver `coach.api.cookies`), invisible a JavaScript.
+    """
 
     access_token: str
-    refresh_token: str
     token_type: str = "bearer"
 
 
