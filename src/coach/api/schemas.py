@@ -85,3 +85,18 @@ class PlanResponse(BaseModel):
     # quedan vacíos — sigue siendo HTTP 201; el cliente distingue por derivation != null.
     derivation: DerivationMessage | None = None
     errors: list[str] = []
+
+
+class PlanSummary(BaseModel):
+    """Vista resumida de un Plan para el historial (GET /plans).
+
+    No incluye el plan completo (WeeklyPlan/actividades/derivación): solo lo
+    justo para renderizar una fila de lista. `focus` es el weekly_focus del
+    plan generado; None cuando status=DERIVED (no hubo plan, solo derivación,
+    que el cliente distingue por status).
+    """
+
+    id: str
+    status: str
+    created_at: datetime
+    focus: str | None = None
