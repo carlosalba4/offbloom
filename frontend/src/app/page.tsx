@@ -20,7 +20,7 @@ export default function Home() {
         </p>
 
         <Button asChild size="lg" className="mt-2 px-8 text-base">
-          <Link href="/onboarding">Empezar</Link>
+          <Link href="/register">Empezar</Link>
         </Button>
       </section>
     </main>

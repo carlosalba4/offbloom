@@ -239,36 +239,16 @@ export function buildCoachRequest(form: OnboardingForm): CoachRequest {
 }
 
 // ---------------------------------------------------------------------------
-// Cliente HTTP
+// Selectores puros — parten el `CoachRequest` armado en sus dos mitades para
+// los endpoints separados `PUT /me/profile` y `POST /plans`.
 // ---------------------------------------------------------------------------
 
-/**
- * Envía un `CoachRequest` al endpoint POST /coach y devuelve la respuesta
- * tipada. La URL base se lee de `NEXT_PUBLIC_API_URL` (inlined en el bundle
- * del cliente por Next.js en build time); si no está definida, cae al
- * fallback de desarrollo local.
- *
- * Lanza un `Error` con mensaje legible si la respuesta HTTP no es 2xx.
- */
-export async function postCoach(req: CoachRequest): Promise<CoachResponse> {
-  const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
-  const res = await fetch(`${base}/coach`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(req),
-  })
+/** Extrae el `UserProfile` del formulario (delegando en `buildCoachRequest`). */
+export function buildProfile(form: OnboardingForm): UserProfile {
+  return buildCoachRequest(form).profile
+}
 
-  if (!res.ok) {
-    // Intenta extraer el campo `detail` que devuelve FastAPI en errores
-    let detail = res.statusText
-    try {
-      const json = (await res.json()) as { detail?: string }
-      if (typeof json.detail === "string") detail = json.detail
-    } catch {
-      // La respuesta no es JSON — usa statusText como mensaje
-    }
-    throw new Error(`Error ${res.status}: ${detail}`)
-  }
-
-  return res.json() as Promise<CoachResponse>
+/** Extrae el `UsageData` del formulario (delegando en `buildCoachRequest`). */
+export function buildUsage(form: OnboardingForm): UsageData {
+  return buildCoachRequest(form).usage
 }

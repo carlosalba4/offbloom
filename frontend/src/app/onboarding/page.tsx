@@ -1,8 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { ArrowRight, Check, HeartHandshake, Loader2, Plus, X } from "lucide-react"
+import { useRouter } from "next/navigation"
 
+import { RouteGuard } from "@/components/route-guard"
+import { ChipGroup, EnumSelect, FieldError } from "@/components/onboarding-fields"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -11,181 +13,27 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { putProfile } from "@/lib/api/profile"
+import { ApiError } from "@/lib/api/client"
+import { useAuth } from "@/lib/auth/auth-context"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  buildCoachRequest,
+  buildProfile,
   createEmptyForm,
   ENERGY_OPTIONS,
   GOAL_OPTIONS,
   INTEREST_OPTIONS,
   PLACE_OPTIONS,
-  postCoach,
   SOCIAL_OPTIONS,
-  TIME_OPTIONS,
-  TRIGGER_OPTIONS,
-  USAGE_CATEGORIES,
-  type CoachRequest,
-  type CoachResponse,
-  type CuratedActivity,
   type EnergyLevel,
-  type EnumOption,
   type OnboardingForm,
   type Place,
-  type ResourceType,
   type SocialPreference,
-  type TimeOfDay,
-  type WeeklyPlan,
 } from "@/lib/coach"
 
 // ---------------------------------------------------------------------------
-// Subcomponentes locales (chips de selección múltiple con opción de añadir)
-// ---------------------------------------------------------------------------
-
-interface ChipGroupProps {
-  options: readonly string[]
-  selected: string[]
-  onToggle: (value: string) => void
-  onRemove: (value: string) => void
-  onAdd: (value: string) => void
-  addPlaceholder: string
-  invalid?: boolean
-}
-
-/** Grupo de chips predefinidos + chips propios añadidos + campo "Añadir otro". */
-function ChipGroup({
-  options,
-  selected,
-  onToggle,
-  onRemove,
-  onAdd,
-  addPlaceholder,
-  invalid,
-}: ChipGroupProps) {
-  const [draft, setDraft] = React.useState("")
-  const custom = selected.filter((s) => !options.includes(s))
-
-  function commitDraft() {
-    const value = draft.trim()
-    if (value) {
-      onAdd(value)
-      setDraft("")
-    }
-  }
-
-  return (
-    <div className="flex flex-col gap-3" aria-invalid={invalid}>
-      <div className="flex flex-wrap gap-2">
-        {options.map((option) => {
-          const active = selected.includes(option)
-          return (
-            <button
-              key={option}
-              type="button"
-              aria-pressed={active}
-              onClick={() => onToggle(option)}
-              className={
-                active
-                  ? "rounded-full border border-primary bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors"
-                  : "rounded-full border border-border bg-background px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-muted"
-              }
-            >
-              {option}
-            </button>
-          )
-        })}
-        {custom.map((value) => (
-          <span
-            key={value}
-            className="inline-flex items-center gap-1 rounded-full border border-accent bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground"
-          >
-            {value}
-            <button
-              type="button"
-              aria-label={`Quitar ${value}`}
-              onClick={() => onRemove(value)}
-              className="rounded-full transition-opacity hover:opacity-70"
-            >
-              <X className="size-3.5" />
-            </button>
-          </span>
-        ))}
-      </div>
-      <div className="flex gap-2">
-        <Input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault()
-              commitDraft()
-            }
-          }}
-          placeholder={addPlaceholder}
-          className="max-w-xs"
-        />
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          onClick={commitDraft}
-          disabled={!draft.trim()}
-        >
-          <Plus className="size-4" />
-          Añadir
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-interface EnumSelectProps<T extends string> {
-  value: T | null
-  onChange: (value: T) => void
-  options: ReadonlyArray<EnumOption<T>>
-  placeholder: string
-  invalid?: boolean
-}
-
-/** `Select` genérico para un enum, mostrando la etiqueta español y guardando el valor de API. */
-function EnumSelect<T extends string>({
-  value,
-  onChange,
-  options,
-  placeholder,
-  invalid,
-}: EnumSelectProps<T>) {
-  return (
-    <Select value={value ?? ""} onValueChange={(v) => onChange(v as T)}>
-      <SelectTrigger aria-invalid={invalid}>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((option) => (
-          <SelectItem key={option.value} value={option.value}>
-            {option.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  )
-}
-
-function FieldError({ message }: { message?: string }) {
-  if (!message) return null
-  return <p className="text-sm text-destructive">{message}</p>
-}
-
-// ---------------------------------------------------------------------------
-// Validación
+// Validación — solo los campos de perfil (goals, minutos, energy, place, social)
 // ---------------------------------------------------------------------------
 
 interface FormErrors {
@@ -194,7 +42,6 @@ interface FormErrors {
   energy?: string
   place?: string
   social?: string
-  usage?: string
 }
 
 function validate(form: OnboardingForm): FormErrors {
@@ -208,297 +55,28 @@ function validate(form: OnboardingForm): FormErrors {
   if (!form.energy) errors.energy = "Selecciona tu nivel de energía."
   if (!form.place) errors.place = "Selecciona dónde sueles estar."
   if (!form.social) errors.social = "Selecciona tu preferencia social."
-  const hasUsage = USAGE_CATEGORIES.some((c) => {
-    const m = form.categoryMinutes[c]
-    return m && m > 0
-  })
-  if (!hasUsage) {
-    errors.usage = "Rellena los minutos de al menos una categoría."
-  }
   return errors
 }
 
-// ---------------------------------------------------------------------------
-// Estado de la petición al coach
-// ---------------------------------------------------------------------------
+type SubmitStatus = "idle" | "loading" | "error"
 
-type RequestStatus = "idle" | "loading" | "success" | "error"
+function OnboardingContent() {
+  const { user, refreshUser } = useAuth()
+  const router = useRouter()
 
-// El coach tarda decenas de segundos; rotamos estos mensajes durante la espera.
-const LOADING_MESSAGES = [
-  "Analizando tus hábitos…",
-  "Buscando alternativas para ti…",
-  "Preparando tu plan…",
-] as const
-
-// Etiquetas legibles para el tipo de recurso de una derivación.
-const RESOURCE_TYPE_LABELS: Record<ResourceType, string> = {
-  MENTAL_HEALTH: "Salud mental",
-  MEDICAL: "Atención médica",
-  CRISIS_SUPPORT: "Apoyo en crisis",
-  GENERAL: "Recurso general",
-}
-
-// Lookups valor de API → etiqueta español para la metainfo de actividades.
-// Reutilizan los catálogos del onboarding como única fuente de verdad.
-const ENERGY_LABELS = Object.fromEntries(
-  ENERGY_OPTIONS.map((o) => [o.value, o.label])
-) as Record<EnergyLevel, string>
-
-const PLACE_LABELS = Object.fromEntries(
-  PLACE_OPTIONS.map((o) => [o.value, o.label])
-) as Record<Place, string>
-
-const TIME_LABELS = Object.fromEntries(
-  TIME_OPTIONS.map((o) => [o.value, o.label])
-) as Record<TimeOfDay, string>
-
-// ---------------------------------------------------------------------------
-// Pantalla de resultado del coach
-// ---------------------------------------------------------------------------
-
-/** Badge discreto para la metainfo de una actividad. */
-function MetaBadge({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">
-      {children}
-    </span>
-  )
-}
-
-/** Caso A — derivación: mensaje sereno y cálido, sin tono de error. */
-function DerivationCard({
-  derivation,
-}: {
-  derivation: NonNullable<CoachResponse["derivation"]>
-}) {
-  return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-accent/40 bg-accent/10 p-6">
-      <div className="flex items-center gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent/30 text-accent-foreground">
-          <HeartHandshake className="size-5" />
-        </span>
-        <span className="text-xs font-semibold uppercase tracking-widest text-accent-foreground/80">
-          {RESOURCE_TYPE_LABELS[derivation.resource_type]}
-        </span>
-      </div>
-      <p className="text-base leading-relaxed text-foreground">
-        {derivation.message}
-      </p>
-    </div>
-  )
-}
-
-/** Aviso discreto cuando llega plan pero `errors` trae algo. */
-function PartialErrorNotice() {
-  return (
-    <div className="rounded-xl border border-accent/30 bg-muted px-4 py-3 text-sm text-muted-foreground">
-      Algunas piezas del plan no se pudieron preparar. El resto está listo para
-      ti.
-    </div>
-  )
-}
-
-/** Hero con el foco de la semana. */
-function FocusHero({ focus }: { focus: string }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <span className="text-xs font-semibold uppercase tracking-widest text-primary">
-        Tu foco de esta semana
-      </span>
-      <h2 className="font-serif text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-4xl">
-        {focus}
-      </h2>
-    </div>
-  )
-}
-
-/** Lista de intenciones con check teal sutil. */
-function IntentionsList({ intentions }: { intentions: string[] }) {
-  return (
-    <div className="flex flex-col gap-3">
-      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Tus intenciones
-      </span>
-      <ul className="flex flex-col gap-2.5">
-        {intentions.map((intention) => (
-          <li key={intention} className="flex items-start gap-3">
-            <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Check className="size-3.5" />
-            </span>
-            <span className="text-sm leading-relaxed text-foreground">
-              {intention}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
-/** Sustituciones: hábito → alternativa, de forma visual. */
-function SwapsList({ swaps }: { swaps: WeeklyPlan["swaps"] }) {
-  return (
-    <div className="flex flex-col gap-3">
-      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Sustituciones
-      </span>
-      <ul className="flex flex-col gap-2">
-        {swaps.map((swap) => (
-          <li
-            key={`${swap.habit}-${swap.alternative}`}
-            className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-muted px-4 py-3 text-sm"
-          >
-            <span className="text-muted-foreground line-through">
-              {swap.habit}
-            </span>
-            <ArrowRight className="size-4 shrink-0 text-primary" />
-            <span className="font-medium text-primary">{swap.alternative}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
-/** Tarjeta de una actividad curada, con su metainfo como badges. */
-function ActivityCard({ activity }: { activity: CuratedActivity }) {
-  const badges: string[] = []
-  if (activity.duration_min != null) badges.push(`${activity.duration_min} min`)
-  if (activity.energy) badges.push(`Energía: ${ENERGY_LABELS[activity.energy]}`)
-  if (activity.place) badges.push(PLACE_LABELS[activity.place])
-  if (activity.moment) badges.push(TIME_LABELS[activity.moment])
-
-  return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
-      <h3 className="font-serif text-lg font-semibold leading-snug text-foreground">
-        {activity.title}
-      </h3>
-      <p className="text-sm leading-relaxed text-muted-foreground">
-        {activity.why_it_fits}
-      </p>
-      {activity.replaces && (
-        <p className="text-xs text-muted-foreground">
-          <span className="font-medium text-foreground">Sustituye a:</span>{" "}
-          {activity.replaces}
-        </p>
-      )}
-      {badges.length > 0 && (
-        <div className="mt-auto flex flex-wrap gap-2 pt-1">
-          {badges.map((badge) => (
-            <MetaBadge key={badge}>{badge}</MetaBadge>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-/** Grid de actividades propuestas. */
-function ActivitiesGrid({ activities }: { activities: CuratedActivity[] }) {
-  return (
-    <div className="flex flex-col gap-3">
-      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Actividades para ti
-      </span>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {activities.map((activity) => (
-          <ActivityCard key={activity.title} activity={activity} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-/** Citas al pie, discretas y deduplicadas por fuente. */
-function CitationsFooter({ citations }: { citations: WeeklyPlan["citations"] }) {
-  const sources = Array.from(new Set(citations.map((c) => c.source)))
-  if (sources.length === 0) return null
-
-  return (
-    <div className="flex flex-col gap-2 border-t border-border pt-4">
-      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Fuentes
-      </span>
-      <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
-        {sources.map((source) => (
-          <li key={source}>{source}</li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
-/** Pantalla de resultado: orquesta los tres casos del `CoachResponse`. */
-function ResultScreen({
-  response,
-  onReset,
-}: {
-  response: CoachResponse
-  onReset: () => void
-}) {
-  const { plan, activities, derivation, errors } = response
-
-  return (
-    <section className="flex flex-col gap-8">
-      {derivation ? (
-        <DerivationCard derivation={derivation} />
-      ) : (
-        plan && (
-          <div className="flex flex-col gap-8">
-            <FocusHero focus={plan.weekly_focus} />
-            {errors.length > 0 && <PartialErrorNotice />}
-            {plan.intentions.length > 0 && (
-              <IntentionsList intentions={plan.intentions} />
-            )}
-            {plan.swaps.length > 0 && <SwapsList swaps={plan.swaps} />}
-            {activities.length > 0 && (
-              <ActivitiesGrid activities={activities} />
-            )}
-            <CitationsFooter citations={plan.citations} />
-          </div>
-        )
-      )}
-
-      <Button
-        type="button"
-        variant="outline"
-        size="lg"
-        className="self-center px-8 text-base"
-        onClick={onReset}
-      >
-        Crear otro plan
-      </Button>
-    </section>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Pantalla
-// ---------------------------------------------------------------------------
-
-export default function OnboardingPage() {
   const [form, setForm] = React.useState<OnboardingForm>(createEmptyForm)
   const [errors, setErrors] = React.useState<FormErrors>({})
-  const [status, setStatus] = React.useState<RequestStatus>("idle")
-  const [response, setResponse] = React.useState<CoachResponse | null>(null)
+  const [status, setStatus] = React.useState<SubmitStatus>("idle")
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null)
-  const [lastRequest, setLastRequest] = React.useState<CoachRequest | null>(null)
-  const [loadingMsg, setLoadingMsg] = React.useState<string>(LOADING_MESSAGES[0])
 
-  // Rota el mensaje de carga mientras esperamos al coach. El mensaje inicial se
-  // fija en sendRequest; aquí solo avanzamos al siguiente cada intervalo.
+  // Ya tiene perfil (p.ej. entró aquí directamente por URL): fuera, al dashboard.
   React.useEffect(() => {
-    if (status !== "loading") return
-    let index = 0
-    const id = window.setInterval(() => {
-      index = (index + 1) % LOADING_MESSAGES.length
-      setLoadingMsg(LOADING_MESSAGES[index])
-    }, 3500)
-    return () => window.clearInterval(id)
-  }, [status])
+    if (user?.has_profile === true) {
+      router.replace("/dashboard")
+    }
+  }, [user, router])
 
-  function toggleInList(key: "goals" | "interests" | "triggers", value: string) {
+  function toggleInList(key: "goals" | "interests", value: string) {
     setForm((prev) => {
       const list = prev[key]
       const next = list.includes(value)
@@ -508,7 +86,7 @@ export default function OnboardingPage() {
     })
   }
 
-  function addToList(key: "goals" | "interests" | "triggers", value: string) {
+  function addToList(key: "goals" | "interests", value: string) {
     setForm((prev) =>
       prev[key].includes(value)
         ? prev
@@ -516,55 +94,11 @@ export default function OnboardingPage() {
     )
   }
 
-  function removeFromList(
-    key: "goals" | "interests" | "triggers",
-    value: string
-  ) {
+  function removeFromList(key: "goals" | "interests", value: string) {
     setForm((prev) => ({
       ...prev,
       [key]: prev[key].filter((v) => v !== value),
     }))
-  }
-
-  function togglePeakWindow(value: TimeOfDay) {
-    setForm((prev) => ({
-      ...prev,
-      peakWindows: prev.peakWindows.includes(value)
-        ? prev.peakWindows.filter((v) => v !== value)
-        : [...prev.peakWindows, value],
-    }))
-  }
-
-  function setCategoryMinutes(category: string, raw: string) {
-    const parsed = raw === "" ? null : Number.parseInt(raw, 10)
-    setForm((prev) => ({
-      ...prev,
-      categoryMinutes: {
-        ...prev.categoryMinutes,
-        [category]: Number.isNaN(parsed as number) ? null : parsed,
-      },
-    }))
-  }
-
-  /** Envía el request al coach y gestiona los estados de carga/éxito/error. */
-  async function sendRequest(req: CoachRequest) {
-    setLastRequest(req)
-    setLoadingMsg(LOADING_MESSAGES[0])
-    setStatus("loading")
-    setErrorMsg(null)
-    setResponse(null)
-    try {
-      const result = await postCoach(req)
-      setResponse(result)
-      setStatus("success")
-    } catch (err) {
-      setErrorMsg(
-        err instanceof Error
-          ? err.message
-          : "No hemos podido contactar con el coach. Inténtalo de nuevo."
-      )
-      setStatus("error")
-    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -574,19 +108,21 @@ export default function OnboardingPage() {
     if (Object.keys(nextErrors).length > 0) {
       return
     }
-    const built = buildCoachRequest(form)
-    await sendRequest(built)
-  }
 
-  /** Reinicia el flujo: formulario limpio y vuelta al estado inicial. */
-  function resetFlow() {
-    setForm(createEmptyForm())
-    setErrors({})
-    setStatus("idle")
-    setResponse(null)
+    setStatus("loading")
     setErrorMsg(null)
-    setLastRequest(null)
-    window.scrollTo({ top: 0, behavior: "smooth" })
+    try {
+      await putProfile(buildProfile(form))
+      await refreshUser()
+      router.replace("/dashboard")
+    } catch (err) {
+      setErrorMsg(
+        err instanceof ApiError
+          ? err.message
+          : "No hemos podido guardar tu perfil. Inténtalo de nuevo."
+      )
+      setStatus("error")
+    }
   }
 
   return (
@@ -597,8 +133,8 @@ export default function OnboardingPage() {
             Cuéntanos sobre ti
           </h1>
           <p className="text-lg leading-relaxed text-muted-foreground">
-            Con esto el coach prepara un plan y actividades a tu medida. Sin
-            prisa: responde lo que te encaje.
+            Con esto el coach prepara un plan a tu medida. Sin prisa: responde
+            lo que te encaje.
           </p>
         </header>
 
@@ -719,126 +255,36 @@ export default function OnboardingPage() {
             </CardContent>
           </Card>
 
-          {/* Sección 3 — Datos de uso */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Tu uso del móvil</CardTitle>
-              <CardDescription>
-                Una estimación basta. Deja en blanco lo que no apliques.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col gap-3">
-                <Label>Minutos al día por categoría</Label>
-                <div className="flex flex-col gap-3">
-                  {USAGE_CATEGORIES.map((category) => (
-                    <div
-                      key={category}
-                      className="flex items-center justify-between gap-4"
-                    >
-                      <span className="text-sm text-foreground">{category}</span>
-                      <Input
-                        type="number"
-                        min={0}
-                        inputMode="numeric"
-                        placeholder="min/día"
-                        aria-label={`Minutos al día en ${category}`}
-                        className="max-w-[8rem]"
-                        value={form.categoryMinutes[category] ?? ""}
-                        onChange={(e) =>
-                          setCategoryMinutes(category, e.target.value)
-                        }
-                      />
-                    </div>
-                  ))}
-                </div>
-                <FieldError message={errors.usage} />
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <Label>Cuándo lo usas más</Label>
-                <div className="flex flex-wrap gap-4">
-                  {TIME_OPTIONS.map((option) => (
-                    <label
-                      key={option.value}
-                      className="flex cursor-pointer items-center gap-2 text-sm text-foreground"
-                    >
-                      <Checkbox
-                        checked={form.peakWindows.includes(option.value)}
-                        onCheckedChange={() => togglePeakWindow(option.value)}
-                      />
-                      {option.label}
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <Label>Qué te empuja a cogerlo</Label>
-                <ChipGroup
-                  options={TRIGGER_OPTIONS}
-                  selected={form.triggers}
-                  onToggle={(v) => toggleInList("triggers", v)}
-                  onAdd={(v) => addToList("triggers", v)}
-                  onRemove={(v) => removeFromList("triggers", v)}
-                  addPlaceholder="Añadir otro disparador…"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
           <Button
             type="submit"
             size="lg"
             className="self-center px-8 text-base"
             disabled={status === "loading"}
           >
-            Generar mi plan
+            {status === "loading" ? "Guardando…" : "Guardar y continuar"}
           </Button>
         </form>
-
-        {/* Estado de carga: el coach tarda decenas de segundos. */}
-        {status === "loading" && (
-          <Card>
-            <CardContent className="flex items-center gap-3 py-6">
-              <Loader2 className="size-5 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground" aria-live="polite">
-                {loadingMsg}
-              </p>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Estado de error: amable y con opción de reintentar. */}
         {status === "error" && (
           <Card className="border-destructive">
             <CardHeader>
-              <CardTitle>No hemos podido generar tu plan</CardTitle>
+              <CardTitle>No hemos podido guardar tu perfil</CardTitle>
               <CardDescription>
-                {errorMsg ?? "Algo ha fallado al contactar con el coach."}
+                {errorMsg ?? "Algo ha fallado al guardar tu perfil."}
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                onClick={() => {
-                  if (lastRequest) void sendRequest(lastRequest)
-                }}
-                disabled={!lastRequest}
-              >
-                Reintentar
-              </Button>
-            </CardContent>
           </Card>
-        )}
-
-        {/* Resultado: la pantalla bonita del plan del coach. */}
-        {status === "success" && response && (
-          <ResultScreen response={response} onReset={resetFlow} />
         )}
       </div>
     </main>
+  )
+}
+
+export default function OnboardingPage() {
+  return (
+    <RouteGuard>
+      <OnboardingContent />
+    </RouteGuard>
   )
 }

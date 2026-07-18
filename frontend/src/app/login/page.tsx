@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Suspense } from "react"
 import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { Loader2 } from "lucide-react"
 
 import { GuestGuard } from "@/components/route-guard"
@@ -22,8 +22,6 @@ import { useAuth } from "@/lib/auth/auth-context"
 
 function LoginForm() {
   const { login } = useAuth()
-  const router = useRouter()
-  const searchParams = useSearchParams()
 
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
@@ -35,13 +33,9 @@ function LoginForm() {
     setError(null)
     setSubmitting(true)
     try {
-      const user = await login(email, password)
-      if (!user.has_profile) {
-        router.replace("/onboarding")
-        return
-      }
-      const next = searchParams.get("next")
-      router.replace(next ?? "/dashboard")
+      // El guard (`GuestGuard`) es la única fuente de verdad de a dónde ir
+      // tras autenticar: redirige según `has_profile` en cuanto detecta sesión.
+      await login(email, password)
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         setError("Email o contraseña incorrectos.")
@@ -113,12 +107,25 @@ function LoginFormFallback() {
   )
 }
 
+/**
+ * Lee `next` de la query string (requiere estar bajo `Suspense`) y se lo pasa
+ * a `GuestGuard` como destino post-login por defecto.
+ */
+function LoginGuestGate() {
+  const searchParams = useSearchParams()
+  const next = searchParams.get("next")
+
+  return (
+    <GuestGuard destination={next ?? "/dashboard"}>
+      <LoginForm />
+    </GuestGuard>
+  )
+}
+
 export default function LoginPage() {
   return (
-    <GuestGuard>
-      <Suspense fallback={<LoginFormFallback />}>
-        <LoginForm />
-      </Suspense>
-    </GuestGuard>
+    <Suspense fallback={<LoginFormFallback />}>
+      <LoginGuestGate />
+    </Suspense>
   )
 }

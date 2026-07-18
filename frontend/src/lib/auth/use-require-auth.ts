@@ -28,18 +28,26 @@ export function useRequireAuth(): { status: AuthStatus } {
   return { status }
 }
 
-/** Para páginas públicas de auth (/login, /register): aparta a quien ya tiene sesión. */
+/**
+ * Para páginas públicas de auth (/login, /register): aparta a quien ya tiene
+ * sesión. Fuente única de verdad del gating post-auth: si el usuario no tiene
+ * perfil (`has_profile === false`) va a /onboarding; si no, a `destination`.
+ */
 export function useRedirectIfAuthenticated(destination = "/dashboard"): {
   status: AuthStatus
 } {
-  const { status } = useAuth()
+  const { status, user } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
     if (status === "authenticated") {
-      router.replace(destination)
+      if (user && !user.has_profile) {
+        router.replace("/onboarding")
+      } else {
+        router.replace(destination)
+      }
     }
-  }, [status, router, destination])
+  }, [status, user, router, destination])
 
   return { status }
 }

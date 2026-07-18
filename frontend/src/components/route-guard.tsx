@@ -34,11 +34,18 @@ export function RouteGuard({ children }: { children: ReactNode }) {
 
 /**
  * Envuelve páginas públicas de auth (/login, /register). Si ya hay sesión,
- * `useRedirectIfAuthenticated` navega a /dashboard y aquí no se renderiza
- * nada; en cualquier otro caso, renderiza los children (el formulario).
+ * `useRedirectIfAuthenticated` navega a `destination` (o a /onboarding si el
+ * usuario aún no tiene perfil) y aquí no se renderiza nada; en cualquier otro
+ * caso, renderiza los children (el formulario).
  */
-export function GuestGuard({ children }: { children: ReactNode }) {
-  const { status } = useRedirectIfAuthenticated()
+export function GuestGuard({
+  children,
+  destination,
+}: {
+  children: ReactNode
+  destination?: string
+}) {
+  const { status } = useRedirectIfAuthenticated(destination)
 
   if (status === "loading") return <AuthPlaceholder />
   if (status === "authenticated") return null

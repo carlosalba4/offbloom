@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 
 import { GuestGuard } from "@/components/route-guard"
 import { Button } from "@/components/ui/button"
@@ -21,7 +20,6 @@ import { useAuth } from "@/lib/auth/auth-context"
 
 function RegisterForm() {
   const { login } = useAuth()
-  const router = useRouter()
 
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
@@ -34,11 +32,11 @@ function RegisterForm() {
     setSubmitting(true)
     try {
       // El backend no emite tokens en /auth/register: encadenamos un login
-      // con las mismas credenciales para arrancar la sesión.
+      // con las mismas credenciales para arrancar la sesión. El guard
+      // (`GuestGuard`) redirige a /onboarding en cuanto detecta la sesión
+      // recién creada, porque `has_profile` es `false`.
       await auth.register(email, password)
       await login(email, password)
-      // Recién registrado: has_profile siempre es false.
-      router.replace("/onboarding")
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         setError("Ya existe una cuenta con ese email.")
