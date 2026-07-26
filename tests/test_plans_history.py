@@ -72,9 +72,7 @@ def _make_derived_plan(user_id: str, created_at: datetime) -> Plan:
 
 
 class TestListPlansOwnershipAndOrder:
-    def test_list_plans_returns_only_own_plans_ordered_by_created_at_desc(
-        self, client, db_session
-    ):
+    def test_list_plans_returns_only_own_plans_ordered_by_created_at_desc(self, client, db_session):
         # Arrange — dos usuarios; A tiene tres planes con timestamps distintos, B tiene uno
         headers_a = auth_headers(client, email="history-a@example.com")
         headers_b = auth_headers(client, email="history-b@example.com")
