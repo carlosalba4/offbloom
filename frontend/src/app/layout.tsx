@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Manrope } from "next/font/google";
 import "./globals.css";
-import { SiteHeader } from "@/components/site-header";
 import { Providers } from "@/components/providers";
 
 // Titulares: serif cálido y sereno.
@@ -38,7 +37,6 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
         <Providers>
-          <SiteHeader />
           <div className="flex flex-1 flex-col">{children}</div>
         </Providers>
       </body>

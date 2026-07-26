@@ -252,3 +252,19 @@ export function buildProfile(form: OnboardingForm): UserProfile {
 export function buildUsage(form: OnboardingForm): UsageData {
   return buildCoachRequest(form).usage
 }
+
+/**
+ * Inverso de `buildProfile`: precarga el formulario a partir de un `UserProfile`
+ * ya persistido (pantalla de perfil). El check-in de uso queda vacío.
+ */
+export function formFromProfile(profile: UserProfile): OnboardingForm {
+  return {
+    ...createEmptyForm(),
+    goals: profile.goals,
+    interests: profile.interests,
+    availableMinutes: profile.constraints.available_minutes,
+    energy: profile.constraints.energy,
+    place: profile.constraints.place,
+    social: profile.constraints.social,
+  }
+}

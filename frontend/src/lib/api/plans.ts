@@ -24,3 +24,21 @@ export function createPlan(usage: UsageData): Promise<PlanResponse> {
     body: JSON.stringify({ usage }),
   })
 }
+
+/** Resumen de un plan persistido, tal y como lo devuelve `GET /plans` (orden fecha desc). */
+export interface PlanSummary {
+  id: string
+  status: string
+  created_at: string
+  focus: string | null
+}
+
+/** GET /plans — historial de planes del usuario autenticado. */
+export function listPlans(): Promise<PlanSummary[]> {
+  return apiRequest<PlanSummary[]>("/plans")
+}
+
+/** GET /plans/{id} — detalle completo de un plan; `ApiError.status === 404` si no existe o es ajeno. */
+export function getPlan(id: string): Promise<PlanResponse> {
+  return apiRequest<PlanResponse>(`/plans/${id}`)
+}

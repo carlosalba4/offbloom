@@ -2,17 +2,15 @@
 
 /**
  * Dashboard: check-in ligero de uso (solo `UsageData` — energía y tiempo
- * disponible ya viven en el perfil) que dispara `POST /plans` y renderiza el
- * `PlanResult` correspondiente.
+ * disponible ya viven en el perfil) que dispara `POST /plans` y navega al
+ * detalle del plan recién creado (`/plans/{id}`).
  */
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 
-import { RouteGuard } from "@/components/route-guard"
 import { ChipGroup, FieldError } from "@/components/onboarding-fields"
-import { PlanResult } from "@/components/plan-result"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -24,9 +22,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { createPlan, type PlanResponse } from "@/lib/api/plans"
+import { createPlan } from "@/lib/api/plans"
 import { ApiError } from "@/lib/api/client"
-import { useAuth } from "@/lib/auth/auth-context"
 import {
   buildUsage,
   createEmptyForm,
@@ -57,7 +54,7 @@ function validate(form: OnboardingForm): FormErrors {
   return errors
 }
 
-type RequestStatus = "idle" | "loading" | "success" | "error"
+type RequestStatus = "idle" | "loading" | "error"
 
 // El coach tarda decenas de segundos; rotamos estos mensajes durante la espera.
 const LOADING_MESSAGES = [
@@ -67,10 +64,10 @@ const LOADING_MESSAGES = [
 ] as const
 
 function CheckInForm() {
+  const router = useRouter()
   const [form, setForm] = React.useState<OnboardingForm>(createEmptyForm)
   const [errors, setErrors] = React.useState<FormErrors>({})
   const [status, setStatus] = React.useState<RequestStatus>("idle")
-  const [plan, setPlan] = React.useState<PlanResponse | null>(null)
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null)
   const [loadingMsg, setLoadingMsg] = React.useState<string>(LOADING_MESSAGES[0])
 
@@ -134,11 +131,10 @@ function CheckInForm() {
     setLoadingMsg(LOADING_MESSAGES[0])
     setStatus("loading")
     setErrorMsg(null)
-    setPlan(null)
     try {
       const result = await createPlan(buildUsage(form))
-      setPlan(result)
-      setStatus("success")
+      // El plan queda persistido y recargable por id: navegamos a su detalle.
+      router.push(`/plans/${result.id}`)
     } catch (err) {
       setErrorMsg(
         err instanceof ApiError
@@ -157,20 +153,6 @@ function CheckInForm() {
       return
     }
     await sendCheckIn()
-  }
-
-  /** Limpia el resultado para permitir otro check-in, con el formulario en blanco. */
-  function resetFlow() {
-    setForm(createEmptyForm())
-    setErrors({})
-    setStatus("idle")
-    setPlan(null)
-    setErrorMsg(null)
-    window.scrollTo({ top: 0, behavior: "smooth" })
-  }
-
-  if (status === "success" && plan) {
-    return <PlanResult response={plan} onReset={resetFlow} />
   }
 
   return (
@@ -290,53 +272,21 @@ function CheckInForm() {
   )
 }
 
-function DashboardContent() {
-  const { user, logout } = useAuth()
-  const router = useRouter()
-  const [loggingOut, setLoggingOut] = React.useState(false)
-
-  async function handleLogout() {
-    setLoggingOut(true)
-    try {
-      await logout()
-    } finally {
-      router.replace("/login")
-    }
-  }
-
+export default function DashboardPage() {
   return (
     <main className="flex flex-1 justify-center px-6 py-12">
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-8">
-        <header className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-col gap-1">
-            <h1 className="font-serif text-3xl font-semibold tracking-tight text-foreground">
-              Tu check-in
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Sesión iniciada como{" "}
-              <span className="font-medium text-foreground">{user?.email}</span>.
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void handleLogout()}
-            disabled={loggingOut}
-          >
-            {loggingOut ? "Cerrando sesión…" : "Cerrar sesión"}
-          </Button>
+        <header className="flex flex-col gap-1">
+          <h1 className="font-serif text-3xl font-semibold tracking-tight text-foreground">
+            Tu check-in
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Cuéntanos cómo has usado el móvil y prepararemos tu plan.
+          </p>
         </header>
 
         <CheckInForm />
       </div>
     </main>
-  )
-}
-
-export default function DashboardPage() {
-  return (
-    <RouteGuard>
-      <DashboardContent />
-    </RouteGuard>
   )
 }
