@@ -123,7 +123,7 @@ src/coach/
     engine.py       # create_engine(database_url)
     session.py      # get_db dependency (generador SYNC)
     models/         # user, profile, plan, progress, refresh_token (ORM)
-    repositories.py # UserRepo/ProfileRepo/PlanRepo/ProgressRepo (queries + ownership)
+    repositories.py # UserRepo/ProfileRepo/PlanRepo/ActivityProgressRepo (queries + ownership)
     mappers.py      # ÚNICO puente ORM <-> dominio Pydantic
   auth/           # AUTENTICACIÓN
   api/            # PRESENTACIÓN (routers)
@@ -196,8 +196,7 @@ una vez y lo deja en `app.state.graph` (igual que hoy). Los routers viven en `ap
 | -------------------- | ------------------------------------------------ |
 | `auth_router.py`     | register / login / refresh / logout / me         |
 | `profile_router.py`  | onboarding y lectura/edición del perfil          |
-| `plans_router.py`    | `POST /plans` (sustituye a `/coach`), historial  |
-| `progress_router.py` | marcar actividad PENDING/DONE/SKIPPED            |
+| `plans_router.py`    | `POST /plans` (sustituye a `/coach`), historial y progreso de actividades |
 
 **Contrato de auth** (ver ADR-011): `TokenResponse` es **access-only**
 (`{access_token, token_type}`); el refresh sale/entra por **cookie httpOnly**, no por el

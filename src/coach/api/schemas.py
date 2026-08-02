@@ -68,6 +68,33 @@ class PlanRequest(BaseModel):
     usage: UsageData
 
 
+class ActivityWithProgress(CuratedActivity):
+    """Actividad del plan enriquecida con su progreso para la capa API.
+
+    CuratedActivity pertenece al dominio del coach y se mantiene intacta: el
+    progreso vive en la tabla activity_progresses, no en el snapshot del plan.
+    `done` es la proyección binaria de ese estado (DONE -> true; ausente,
+    PENDING o SKIPPED -> false).
+    """
+
+    done: bool = False
+
+
+class ActivityProgressRequest(BaseModel):
+    """Cuerpo de PUT /plans/{plan_id}/activities/{activity_index}/progress."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    done: bool
+
+
+class ActivityProgressResponse(BaseModel):
+    """Estado resultante tras marcar o desmarcar una actividad."""
+
+    activity_index: int
+    done: bool
+
+
 class PlanResponse(BaseModel):
     """Respuesta pública de un Plan persistido.
 
@@ -80,7 +107,7 @@ class PlanResponse(BaseModel):
     status: str
     created_at: datetime
     plan: WeeklyPlan | None = None
-    activities: list[CuratedActivity] = []
+    activities: list[ActivityWithProgress] = []
     # Cuando el gate de seguridad salta, derivation viene poblado y plan/activities
     # quedan vacíos — sigue siendo HTTP 201; el cliente distingue por derivation != null.
     derivation: DerivationMessage | None = None

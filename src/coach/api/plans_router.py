@@ -1,9 +1,13 @@
-"""Endpoint de check-in: POST /plans.
+"""Endpoints del dominio /plans: check-in, historial y progreso de actividades.
 
-Carga el perfil persistido del usuario autenticado, invoca el grafo del coach
-(sin modificarlo) y persiste el resultado como una fila Plan asociada al
-usuario. Handler síncrono para que FastAPI lo despache al threadpool y no
+POST /plans carga el perfil persistido del usuario autenticado, invoca el grafo
+del coach (sin modificarlo) y persiste el resultado como una fila Plan asociada
+al usuario. Handler síncrono para que FastAPI lo despache al threadpool y no
 bloquee el event loop durante la llamada (potencialmente lenta) al LLM.
+
+GET /plans y GET /plans/{id} sirven el historial; el detalle enriquece cada
+actividad con su progreso. PUT /plans/{id}/activities/{i}/progress marca o
+desmarca una actividad.
 """
 
 from __future__ import annotations
@@ -15,8 +19,16 @@ from sqlalchemy.orm import Session
 
 from coach.api.deps import get_current_user, get_db
 from coach.api.observability import langfuse_callbacks
-from coach.api.schemas import PlanRequest, PlanResponse, PlanSummary
+from coach.api.schemas import (
+    ActivityProgressRequest,
+    ActivityProgressResponse,
+    ActivityWithProgress,
+    PlanRequest,
+    PlanResponse,
+    PlanSummary,
+)
 from coach.config import settings
+from coach.db.enums import ActivityProgressStatus
 from coach.db.mappers import (
     coach_result_to_plan_row,
     plan_row_to_activities,
@@ -26,7 +38,7 @@ from coach.db.mappers import (
 )
 from coach.db.models.plan import Plan
 from coach.db.models.user import User
-from coach.db.repositories import PlanRepo, ProfileRepo
+from coach.db.repositories import ActivityProgressRepo, PlanRepo, ProfileRepo
 from coach.graph.state import CoachState
 
 logger = logging.getLogger(__name__)
@@ -34,14 +46,26 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/plans", tags=["plans"])
 
 
-def _plan_row_to_response(plan_row: Plan) -> PlanResponse:
-    """Construye la respuesta pública completa de un Plan a partir de su fila ORM."""
+def _plan_row_to_response(
+    plan_row: Plan,
+    done_by_index: dict[int, bool] | None = None,
+) -> PlanResponse:
+    """Construye la respuesta pública completa de un Plan a partir de su fila ORM.
+
+    done_by_index mapea la posición de la actividad a su progreso. Si no se
+    pasa (plan recién generado), todas las actividades salen con done=False.
+    """
+    done_by_index = done_by_index or {}
+    activities = [
+        ActivityWithProgress(**activity.model_dump(), done=done_by_index.get(index, False))
+        for index, activity in enumerate(plan_row_to_activities(plan_row))
+    ]
     return PlanResponse(
         id=plan_row.id,
         status=str(plan_row.status),
         created_at=plan_row.created_at,
         plan=plan_row_to_weekly_plan(plan_row),
-        activities=plan_row_to_activities(plan_row),
+        activities=activities,
         derivation=plan_row_to_derivation(plan_row),
         errors=plan_row.errors or [],
     )
@@ -142,4 +166,49 @@ def get_plan(
     if plan_row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Plan no encontrado")
 
-    return _plan_row_to_response(plan_row)
+    progress_rows = ActivityProgressRepo(db).list_by_plan(plan_id)
+    done_by_index = {
+        row.activity_index: row.status is ActivityProgressStatus.DONE for row in progress_rows
+    }
+
+    return _plan_row_to_response(plan_row, done_by_index)
+
+
+@router.put(
+    "/{plan_id}/activities/{activity_index}/progress",
+    response_model=ActivityProgressResponse,
+)
+def set_activity_progress(
+    plan_id: str,
+    activity_index: int,
+    body: ActivityProgressRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ActivityProgressResponse:
+    """Marca o desmarca como hecha una actividad de un plan propio (idempotente).
+
+    404 si el plan no existe o es de otro usuario (nunca 403, ADR-007), y
+    también si activity_index cae fuera del array de actividades del plan.
+    El progreso es binario: done=true -> DONE, done=false -> PENDING.
+    """
+    plan_row = PlanRepo(db).get_by_id(plan_id, current_user.id)
+    if plan_row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Plan no encontrado")
+
+    activities = plan_row.activities or []
+    if not 0 <= activity_index < len(activities):
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail="activity_index fuera de rango",
+        )
+
+    new_status = ActivityProgressStatus.DONE if body.done else ActivityProgressStatus.PENDING
+    ActivityProgressRepo(db).upsert(
+        plan_id=plan_id,
+        user_id=current_user.id,
+        activity_index=activity_index,
+        status=new_status,
+    )
+    db.commit()
+
+    return ActivityProgressResponse(activity_index=activity_index, done=body.done)

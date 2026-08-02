@@ -15,6 +15,8 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
+from coach.db.enums import ActivityProgressStatus
+from coach.db.models.activity_progress import ActivityProgress
 from coach.db.models.plan import Plan
 from coach.db.models.profile import Profile
 from coach.db.models.refresh_token import RefreshToken
@@ -134,6 +136,60 @@ class PlanRepo:
             .offset(offset)
             .all()
         )
+
+
+class ActivityProgressRepo:
+    """Operaciones sobre la tabla `activity_progresses`.
+
+    La identidad de una actividad es su posición en el array inmutable
+    Plan.activities (ADR-008), de ahí que la clave funcional sea
+    (plan_id, activity_index) — respaldada por uq_progress_plan_activity.
+
+    El repo no comprueba propiedad: quien llama ya ha resuelto el plan con
+    PlanRepo.get_by_id(plan_id, user_id), que garantiza el aislamiento.
+    """
+
+    def __init__(self, db: Session) -> None:
+        self.db = db
+
+    def list_by_plan(self, plan_id: str) -> list[ActivityProgress]:
+        """Devuelve todas las filas de progreso registradas para un plan."""
+        return self.db.query(ActivityProgress).filter(ActivityProgress.plan_id == plan_id).all()
+
+    def upsert(
+        self,
+        plan_id: str,
+        user_id: str,
+        activity_index: int,
+        status: ActivityProgressStatus,
+    ) -> ActivityProgress:
+        """Crea o actualiza el progreso de una actividad (idempotente).
+
+        Repetir la llamada con el mismo status no duplica filas ni cambia el
+        estado. No hace commit; el handler es responsable.
+        """
+        progress = (
+            self.db.query(ActivityProgress)
+            .filter(
+                ActivityProgress.plan_id == plan_id,
+                ActivityProgress.activity_index == activity_index,
+            )
+            .first()
+        )
+        if progress is None:
+            progress = ActivityProgress(
+                id=str(uuid.uuid4()),
+                plan_id=plan_id,
+                user_id=user_id,
+                activity_index=activity_index,
+                status=status,
+            )
+            self.db.add(progress)
+        else:
+            progress.status = status
+        self.db.flush()
+        self.db.refresh(progress)
+        return progress
 
 
 class RefreshTokenRepo:
