@@ -1,4 +1,4 @@
-"""Casos de uso de autenticación: registro, login, refresh y logout.
+"""Casos de uso de autenticación: registro, login, refresh, logout y baja de cuenta.
 
 `AuthService` orquesta los repositorios de persistencia y las primitivas de
 `security.py`. Nunca hace commit (Pattern B / Decisión D4): esa
@@ -49,7 +49,7 @@ def _as_aware_utc(value: datetime) -> datetime:
 
 
 class AuthService:
-    """Orquesta el registro, login, rotación de refresh tokens y logout."""
+    """Orquesta el registro, login, rotación de refresh tokens, logout y baja."""
 
     def __init__(self, db: Session) -> None:
         self.db = db
@@ -118,6 +118,27 @@ class AuthService:
         stored = self.refresh_tokens.get_by_hash(token_hash)
         if stored is not None:
             self.refresh_tokens.revoke(stored)
+
+    def delete_account(self, user: User, password: str) -> None:
+        """Reautentica al usuario por contraseña y borra su cuenta entera.
+
+        El usuario llega ya autenticado por su access token; esta contraseña
+        es un paso adicional (step-up) para que un token robado no baste para
+        destruir la cuenta. Lanza InvalidCredentials si no coincide, sin haber
+        tocado nada.
+
+        Una cuenta sin password_hash (registrada por un proveedor externo) no
+        puede reautenticarse por contraseña: se rechaza, verificando igual
+        contra el hash dummy para no delatar el caso por el tiempo de respuesta.
+        """
+        if user.password_hash is None:
+            verify_password(password, _DUMMY_HASH)
+            raise InvalidCredentials("Credenciales inválidas")
+
+        if not verify_password(password, user.password_hash):
+            raise InvalidCredentials("Credenciales inválidas")
+
+        self.users.delete(user)
 
     def _issue_tokens(self, user_id: str) -> tuple[str, str]:
         """Genera y persiste un nuevo par (access, refresh) para un usuario."""

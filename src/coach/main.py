@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from coach.api.account_router import router as account_router
 from coach.api.auth_router import router as auth_router
 from coach.api.plans_router import router as plans_router
 from coach.api.profile_router import router as profile_router
@@ -48,6 +49,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(profile_router)
+app.include_router(account_router)
 app.include_router(plans_router)
 
 

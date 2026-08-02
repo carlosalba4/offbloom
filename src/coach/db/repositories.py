@@ -53,6 +53,20 @@ class UserRepo:
         self.db.refresh(user)
         return user
 
+    def delete(self, user: User) -> None:
+        """Borra el usuario y, en cascada, todo lo suyo.
+
+        La cascada la resuelve el ORM: `User` declara sus cuatro relaciones
+        (perfil, planes, refresh tokens y progreso) con
+        `cascade="all, delete-orphan"`, así que SQLAlchemy emite los DELETE
+        de las tablas hijas antes que el del usuario. No depende del
+        ON DELETE CASCADE del esquema (ver docs/known-issues.md).
+
+        No hace commit: el handler decide cuándo cerrar la transacción.
+        """
+        self.db.delete(user)
+        self.db.flush()
+
 
 class ProfileRepo:
     """Operaciones de lectura y upsert sobre la tabla `profiles`."""

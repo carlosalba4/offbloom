@@ -24,6 +24,29 @@ funcionamiento del coach; se indica en cada caso el impacto real.
   (de `UsageData`) al Curador para desambiguar tarde/atardecer/noche y, opcionalmente,
   pulir el etiquetado temporal del corpus.
 
+## Persistencia
+
+### `PRAGMA foreign_keys` desactivado en SQLite
+- **Qué es:** las cinco claves foráneas del esquema declaran `ON DELETE CASCADE`
+  (modelos ORM y migración `alembic/versions/d7cdbf56ba71_initial_schema.py`), pero
+  SQLite no las aplica: el `PRAGMA foreign_keys` nunca se activa, así que las FKs se
+  almacenan en el DDL y se ignoran en tiempo de ejecución.
+- **Causa:** SQLite trae la comprobación de FKs **desactivada por defecto** y hay que
+  encenderla por conexión. Ni `src/coach/db/engine.py`, ni `tests/conftest.py`, ni
+  `alembic/env.py` registran el listener `connect` que lo haría.
+- **Impacto:** ninguno hoy. El único borrado del sistema (`DELETE /me`) va por
+  **cascada ORM** —`User` declara sus cuatro relaciones con
+  `cascade="all, delete-orphan"`, y SQLAlchemy emite los DELETE hijos él mismo—, que
+  funciona con el pragma apagado y está cubierta por `tests/test_account_deletion.py`.
+  Lo que sí falta es la red de seguridad: la base de datos no rechazaría una FK
+  huérfana insertada por error, ni protegería un `DELETE` en SQL crudo.
+- **Plan:** añadir `@event.listens_for(engine, "connect")` con
+  `PRAGMA foreign_keys=ON` en el engine (y en el de tests), y `passive_deletes=True`
+  en las relaciones para delegar la cascada en la base de datos en vez de cargar las
+  colecciones en memoria. Se dejó fuera del alcance de `DELETE /me` a propósito:
+  activar la integridad referencial puede destapar violaciones latentes y merece su
+  propio cambio.
+
 ## Frontend
 
 ### Duplicación manual de tipos frontend/backend

@@ -31,6 +31,19 @@ class LoginRequest(BaseModel):
     password: str = Field(max_length=128)
 
 
+class DeleteAccountRequest(BaseModel):
+    """Cuerpo de la baja de cuenta: reautenticación por contraseña.
+
+    Sin `min_length`, al contrario que en el registro: aquí no se está
+    eligiendo una contraseña sino comprobando la que ya existe, y una regla
+    de longitud devolvería un 422 donde corresponde un 403.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    password: str = Field(max_length=128)
+
+
 class TokenResponse(BaseModel):
     """Access token emitido tras login o refresh.
 
