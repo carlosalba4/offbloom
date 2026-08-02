@@ -97,10 +97,24 @@ export interface CuratedActivity {
   moment: TimeOfDay | null
 }
 
-/** Respuesta completa del endpoint POST /coach. */
+/**
+ * Actividad tal y como la sirve la API de planes: el modelo del dominio más su
+ * progreso. Espejo de `ActivityWithProgress` (src/coach/api/schemas.py) — el
+ * progreso vive en su propia tabla, no en el snapshot inmutable del plan, de
+ * ahí que `CuratedActivity` se mantenga intacta.
+ */
+export interface ActivityWithProgress extends CuratedActivity {
+  done: boolean
+}
+
+/**
+ * Respuesta completa de un plan. Todo plan que llega al cliente viene de
+ * `/plans`, así que sus actividades siempre traen la proyección `done`
+ * (false en un plan recién generado).
+ */
 export interface CoachResponse {
   plan: WeeklyPlan | null
-  activities: CuratedActivity[]
+  activities: ActivityWithProgress[]
   derivation: DerivationMessage | null
   errors: string[]
 }

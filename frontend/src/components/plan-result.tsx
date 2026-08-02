@@ -5,22 +5,19 @@
  * `CoachResponse` (derivación, plan con actividades, o plan parcial con
  * errores). Extraído de `/onboarding` para reutilizarlo también en
  * `/dashboard` tras cada check-in — mismas props, sin rediseño.
+ *
+ * La sección de actividades es interactiva (progreso por actividad) y vive en
+ * `PlanActivities`; aquí solo se compone.
  */
 
 import * as React from "react"
 import { ArrowRight, Check, HeartHandshake } from "lucide-react"
 
+import { PlanActivities } from "@/components/plan-activities"
 import { Button } from "@/components/ui/button"
 import {
-  ENERGY_OPTIONS,
-  PLACE_OPTIONS,
-  TIME_OPTIONS,
   type CoachResponse,
-  type CuratedActivity,
-  type EnergyLevel,
-  type Place,
   type ResourceType,
-  type TimeOfDay,
   type WeeklyPlan,
 } from "@/lib/coach"
 
@@ -36,32 +33,9 @@ const RESOURCE_TYPE_LABELS: Record<ResourceType, string> = {
   GENERAL: "Recurso general",
 }
 
-// Lookups valor de API → etiqueta español para la metainfo de actividades.
-// Reutilizan los catálogos del dominio como única fuente de verdad.
-const ENERGY_LABELS = Object.fromEntries(
-  ENERGY_OPTIONS.map((o) => [o.value, o.label])
-) as Record<EnergyLevel, string>
-
-const PLACE_LABELS = Object.fromEntries(
-  PLACE_OPTIONS.map((o) => [o.value, o.label])
-) as Record<Place, string>
-
-const TIME_LABELS = Object.fromEntries(
-  TIME_OPTIONS.map((o) => [o.value, o.label])
-) as Record<TimeOfDay, string>
-
 // ---------------------------------------------------------------------------
 // Subcomponentes de presentación
 // ---------------------------------------------------------------------------
-
-/** Badge discreto para la metainfo de una actividad. */
-function MetaBadge({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">
-      {children}
-    </span>
-  )
-}
 
 /** Caso A — derivación: mensaje sereno y cálido, sin tono de error. */
 function DerivationCard({
@@ -158,55 +132,6 @@ function SwapsList({ swaps }: { swaps: WeeklyPlan["swaps"] }) {
   )
 }
 
-/** Tarjeta de una actividad curada, con su metainfo como badges. */
-function ActivityCard({ activity }: { activity: CuratedActivity }) {
-  const badges: string[] = []
-  if (activity.duration_min != null) badges.push(`${activity.duration_min} min`)
-  if (activity.energy) badges.push(`Energía: ${ENERGY_LABELS[activity.energy]}`)
-  if (activity.place) badges.push(PLACE_LABELS[activity.place])
-  if (activity.moment) badges.push(TIME_LABELS[activity.moment])
-
-  return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
-      <h3 className="font-serif text-lg font-semibold leading-snug text-foreground">
-        {activity.title}
-      </h3>
-      <p className="text-sm leading-relaxed text-muted-foreground">
-        {activity.why_it_fits}
-      </p>
-      {activity.replaces && (
-        <p className="text-xs text-muted-foreground">
-          <span className="font-medium text-foreground">Sustituye a:</span>{" "}
-          {activity.replaces}
-        </p>
-      )}
-      {badges.length > 0 && (
-        <div className="mt-auto flex flex-wrap gap-2 pt-1">
-          {badges.map((badge) => (
-            <MetaBadge key={badge}>{badge}</MetaBadge>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-/** Grid de actividades propuestas. */
-function ActivitiesGrid({ activities }: { activities: CuratedActivity[] }) {
-  return (
-    <div className="flex flex-col gap-3">
-      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        Actividades para ti
-      </span>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {activities.map((activity) => (
-          <ActivityCard key={activity.title} activity={activity} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
 /** Citas al pie, discretas y deduplicadas por fuente. */
 function CitationsFooter({ citations }: { citations: WeeklyPlan["citations"] }) {
   const sources = Array.from(new Set(citations.map((c) => c.source)))
@@ -233,9 +158,12 @@ function CitationsFooter({ citations }: { citations: WeeklyPlan["citations"] }) 
 /** Pantalla de resultado: orquesta los tres casos del `CoachResponse`. */
 export function PlanResult({
   response,
+  planId,
   onReset,
 }: {
   response: CoachResponse
+  /** Id del plan persistido: lo necesita el progreso de las actividades. */
+  planId: string
   onReset: () => void
 }) {
   const { plan, activities, derivation, errors } = response
@@ -253,8 +181,15 @@ export function PlanResult({
               <IntentionsList intentions={plan.intentions} />
             )}
             {plan.swaps.length > 0 && <SwapsList swaps={plan.swaps} />}
+            {/* `key`: al navegar de /plans/A a /plans/B Next reutiliza este
+                componente; remontar la sección evita que su estado local
+                arrastre el progreso del plan anterior. */}
             {activities.length > 0 && (
-              <ActivitiesGrid activities={activities} />
+              <PlanActivities
+                key={planId}
+                planId={planId}
+                activities={activities}
+              />
             )}
             <CitationsFooter citations={plan.citations} />
           </div>

@@ -42,3 +42,29 @@ export function listPlans(): Promise<PlanSummary[]> {
 export function getPlan(id: string): Promise<PlanResponse> {
   return apiRequest<PlanResponse>(`/plans/${id}`)
 }
+
+/** Estado resultante tras marcar o desmarcar una actividad (espejo de `ActivityProgressResponse`). */
+export interface ActivityProgressResponse {
+  activity_index: number
+  done: boolean
+}
+
+/**
+ * PUT /plans/{planId}/activities/{activityIndex}/progress — marca o desmarca
+ * una actividad (idempotente). La identidad de la actividad es su posición en
+ * el array inmutable del plan (ADR-008). `ApiError.status === 404` si el plan
+ * no existe o es ajeno, y también si el índice cae fuera de rango.
+ */
+export function setActivityProgress(
+  planId: string,
+  activityIndex: number,
+  done: boolean
+): Promise<ActivityProgressResponse> {
+  return apiRequest<ActivityProgressResponse>(
+    `/plans/${planId}/activities/${activityIndex}/progress`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ done }),
+    }
+  )
+}

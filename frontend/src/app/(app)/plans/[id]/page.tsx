@@ -136,7 +136,11 @@ export default function PlanDetailPage({
   return (
     <main className="flex flex-1 justify-center px-6 py-12">
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-8">
-        <PlanResult response={plan} onReset={() => router.push("/dashboard")} />
+        <PlanResult
+          response={plan}
+          planId={plan.id}
+          onReset={() => router.push("/dashboard")}
+        />
       </div>
     </main>
   )
