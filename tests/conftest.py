@@ -22,6 +22,7 @@ from sqlalchemy.pool import StaticPool  # noqa: E402
 
 import coach.db.models  # noqa: E402, F401  — registra todas las tablas en Base.metadata
 from coach.api import deps  # noqa: E402
+from coach.auth.google import GoogleIdentity  # noqa: E402
 from coach.db.base import Base  # noqa: E402
 from coach.graph.state import (  # noqa: E402
     CategoryUsage,
@@ -124,6 +125,81 @@ def auth_headers(
     assert login_resp.status_code == 200
     access_token = login_resp.json()["access_token"]
     return {"Authorization": f"Bearer {access_token}"}
+
+
+# ---------------------------------------------------------------------------
+# Doble del cliente de Google — evita cualquier llamada real a Google
+# ---------------------------------------------------------------------------
+
+
+class _FakeGoogleOAuthClient:
+    """Doble del cliente OIDC: devuelve una identidad fijada por el test.
+
+    Reproduce la interfaz pública de `GoogleOAuthClient` (build_authorization_url
+    y exchange_code) sin tocar la red. Registra el `code` recibido y puede
+    simular un fallo del canje lanzando la excepción que se le pase.
+    """
+
+    AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth?client_id=fake"
+
+    def __init__(
+        self,
+        *,
+        identity: GoogleIdentity | None = None,
+        raises: BaseException | None = None,
+    ) -> None:
+        self._identity = identity
+        self._raises = raises
+        self.exchanged_code: str | None = None
+
+    def build_authorization_url(self, state: str) -> str:
+        return f"{self.AUTHORIZATION_URL}&state={state}"
+
+    def exchange_code(self, code: str) -> GoogleIdentity:
+        self.exchanged_code = code
+        if self._raises is not None:
+            raise self._raises
+        assert self._identity is not None, "El doble necesita una identity o un raises"
+        return self._identity
+
+
+@pytest.fixture()
+def google_client(client: TestClient):
+    """Factory que sobreescribe `get_google_client` con un doble, y lo restaura.
+
+    Uso dentro de un test::
+
+        def test_algo(client, google_client):
+            fake = google_client(identity=make_google_identity())
+            resp = client.get("/auth/google/callback", ...)
+
+    Se apoya en `app.dependency_overrides`, el mismo mecanismo con el que la
+    fixture `client` inyecta la sesión de BD en memoria.
+    """
+    from coach.main import app  # noqa: PLC0415 — import perezoso, tras fijar JWT_SECRET_KEY
+
+    def _factory(
+        *,
+        identity: GoogleIdentity | None = None,
+        raises: BaseException | None = None,
+    ) -> _FakeGoogleOAuthClient:
+        fake = _FakeGoogleOAuthClient(identity=identity, raises=raises)
+        app.dependency_overrides[deps.get_google_client] = lambda: fake
+        return fake
+
+    yield _factory
+
+    app.dependency_overrides.pop(deps.get_google_client, None)
+
+
+def make_google_identity(
+    sub: str = "google-sub-123",
+    email: str = "google-user@example.com",
+    email_verified: bool = True,
+    name: str | None = "Google User",
+) -> GoogleIdentity:
+    """Construye una GoogleIdentity válida para tests."""
+    return GoogleIdentity(sub=sub, email=email, email_verified=email_verified, name=name)
 
 
 # ---------------------------------------------------------------------------

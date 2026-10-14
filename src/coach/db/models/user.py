@@ -1,8 +1,9 @@
 """Modelo ORM para la tabla `users`.
 
-Representa una cuenta de usuario. password_hash es nullable para preparar OAuth
-futuro (ADR-007) sin migración disruptiva. Todas las entidades hijas se vinculan
-mediante ON DELETE CASCADE (ADR-008).
+Representa una cuenta de usuario. password_hash es nullable porque una cuenta
+creada vía Google no tiene contraseña (ADR-007 lo dejó preparado; ADR-009 lo
+usa). google_sub guarda la identidad de Google. Todas las entidades hijas se
+vinculan mediante ON DELETE CASCADE (ADR-008).
 """
 
 from __future__ import annotations
@@ -36,6 +37,13 @@ class User(Base):
     # La normalización a minúsculas la aplica UserRepo.create, no el ORM.
     email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     password_hash: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Identificador estable del usuario en Google (claim `sub` del id_token).
+    # Nullable porque la mayoría de cuentas son de email+contraseña, y único
+    # para que una identidad de Google no pueda vincularse a dos cuentas.
+    # SQLite y Postgres admiten múltiples NULL en una columna UNIQUE (ADR-009).
+    google_sub: Mapped[str | None] = mapped_column(
+        String(255), unique=True, index=True, nullable=True
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
