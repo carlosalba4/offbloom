@@ -87,6 +87,7 @@ The local groundedness judge (`qwen3:8b`) is not yet considered reliable — it 
 - `docs/02-architecture.md` — architecture
 - `docs/decisions/` — architecture decision records (ADR-001 to ADR-011; ADR-010 was not used)
 - `docs/known-issues.md` — known limitations and deferred fixes
+- `docs/guide/OffBloom-guide-en.pdf` — full application guide (product walkthrough and technical deep dive)
 
 ## Development approach
 
