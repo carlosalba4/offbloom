@@ -64,6 +64,29 @@ funcionamiento del coach; se indica en cada caso el impacto real.
 - **Impacto:** ninguno funcional; el favicon se ve correctamente.
 - **Mejora futura:** sustituirlo por un SVG vectorial real.
 
+### El `?next=` del login no sobrevive al login con Google
+- **Qué es:** si se llega a `/login?next=/ruta`, el login con email respeta ese
+  destino, pero el login con Google no: tras volver de Google siempre se aterriza en
+  `/dashboard`.
+- **Causa:** `next` solo lo lee la página de login para su `GuestGuard`; ni el botón
+  de Google ni `GET /auth/google/login` lo transportan, y la página
+  `/auth/google/callback` redirige siempre a `/dashboard`.
+- **Impacto:** de experiencia, no de seguridad: quien entra con Google desde un enlace
+  profundo tiene que volver a navegar a la ruta que quería.
+- **Plan:** si hace falta, transportar `next` en el `state` del flujo OIDC (validando
+  que sea una ruta interna para no abrir una redirección abierta).
+
+### Vulnerabilidades en dependencias del frontend
+- **Qué es:** `npm audit` en `frontend/` reporta vulnerabilidades (24 en la última
+  ejecución: 1 baja, 6 moderadas, 15 altas, 2 críticas).
+- **Causa:** dependencias transitivas, principalmente de herramientas de build y del
+  CLI de `shadcn` (p. ej. `zod`), no de código propio.
+- **Impacto:** bajo en desarrollo local; la mayoría no llega al bundle que se sirve al
+  navegador, pero conviene revisarlas antes de exponer el frontend públicamente.
+- **Plan:** revisarlas una a una en la fase de despliegue, **sin** `npm audit fix
+  --force` (forzaría saltos de versión con cambios incompatibles, p. ej. bajar
+  `shadcn` a 1.0.0).
+
 ## CI
 
 ### Warnings de dependencias de terceros
@@ -130,12 +153,3 @@ endurecimiento adicional o decisiones de producto pendientes.
 - **Impacto:** menor; en un producto "privacy-first" conviene reconsiderarlo.
 - **Plan:** decisión de producto a revisar; una alternativa sería un flujo que no
   confirme la existencia del email.
-
-### Origen CORS hardcodeado
-- **Qué es:** el origen permitido en CORS está fijado a `localhost:3000` en
-  `src/coach/main.py`, en lugar de venir de la configuración (`Settings`).
-- **Causa:** roza el principio de "nada hardcodeado" del proyecto.
-- **Impacto:** ninguno hoy (desarrollo local; se usa Bearer en header, sin
-  `allow_credentials`).
-- **Plan:** mover el origen a `Settings` en la fase de despliegue, cuando el
-  origen de producción tenga que ser configurable.

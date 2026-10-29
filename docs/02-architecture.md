@@ -180,8 +180,8 @@ con `model_dump(mode="json")`; al leer se reconstruye con `Model.model_validate(
   la sesión. Ver ADR-011.
 - **`get_current_user`** (en `api/deps.py`): valida el access token, carga el `User` y
   lo inyecta en el handler.
-- **`password_hash` es NULLABLE**, preparado para login OAuth futuro (ADR-009, Fase 4)
-  sin migración disruptiva.
+- **`password_hash` es NULLABLE**: las cuentas creadas con el login con Google
+  (ADR-009) no tienen contraseña.
 - **Aislamiento por usuario (bloqueante)**: toda query autenticada filtra por
   `current_user.id`. El acceso a un recurso ajeno devuelve **404, no 403** (no se
   revela la existencia del recurso). `user_id` se **denormaliza** en `Plan` y

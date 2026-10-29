@@ -13,7 +13,7 @@ Built on a LangGraph agent grounded by RAG, served through a model-agnostic Fast
 | Agent | LangGraph, ChromaDB + bge-m3 (RAG), model-agnostic LLM layer (Ollama / OpenAI / Google / Anthropic) |
 | Backend | Python, FastAPI, SQLAlchemy + Alembic, SQLite, uv |
 | Auth | Argon2 password hashing, JWT access tokens, rotating hashed refresh tokens in httpOnly cookies |
-| Frontend | Next.js, TypeScript |
+| Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, shadcn/ui |
 | Quality | pytest (206 tests), Ruff, DeepEval safety gate, LLM-as-judge groundedness eval |
 | Ops | Docker, Docker Compose, GitHub Actions CI, Langfuse tracing |
 
@@ -34,7 +34,7 @@ The graph is served by an API that is agnostic to the underlying model, so the s
 - Email + password registration and login, with Argon2 hashing.
 - Short-lived JWT access tokens plus rotating refresh tokens, stored hashed and delivered in httpOnly cookies.
 - Account deletion (`DELETE /me`) with password reauthentication and atomic cascade across all user-owned tables.
-- Google sign-in (OIDC authorization code flow, backend-driven) — backend complete and tested on the `feat/google-oauth` branch; frontend integration pending.
+- Google sign-in (OIDC authorization code flow, backend-driven), with a Google sign-in button on `/login` and `/register` and a `/auth/google/callback` page that completes the session.
 
 Every non-obvious decision is written up as an ADR in `docs/decisions/`.
 
@@ -69,13 +69,23 @@ uv run ruff check .
 uv run ruff format --check .
 ```
 
-Beyond unit and integration tests, the evaluation layer includes a **DeepEval safety gate** and an **LLM-as-judge groundedness evaluation**, both documented in ADR-004 and ADR-005 and wired into CI.
+CI (GitHub Actions) runs `ruff check`, `ruff format --check` and `pytest tests/` on every push — no LLM required.
+
+Beyond unit and integration tests, the evaluation layer includes a **DeepEval safety gate** (ADR-004) and an **LLM-as-judge groundedness evaluation** (ADR-005). These are not part of CI: they run manually against the real model (they need Ollama serving `qwen3:8b`, plus `bge-m3` and the Chroma index for groundedness) via the scripts in `scripts/`:
+
+```bash
+uv run python scripts/eval_safety_gate.py
+uv run python scripts/eval_groundedness.py
+uv run python scripts/eval_groundedness_discrimination.py
+```
+
+The local groundedness judge (`qwen3:8b`) is not yet considered reliable — it does not discriminate well between grounded and ungrounded plans (see ADR-005) — so its scores are indicative only.
 
 ## Documentation
 
 - `docs/01-prd.md` — product requirements
 - `docs/02-architecture.md` — architecture
-- `docs/decisions/` — architecture decision records (ADR-001 to ADR-011)
+- `docs/decisions/` — architecture decision records (ADR-001 to ADR-011; ADR-010 was not used)
 - `docs/known-issues.md` — known limitations and deferred fixes
 
 ## Development approach
@@ -84,5 +94,4 @@ The project was built through an agentic development workflow designed for this 
 
 ## Roadmap
 
-- Google sign-in frontend integration
 - Cloud deployment (AWS) with PostgreSQL
