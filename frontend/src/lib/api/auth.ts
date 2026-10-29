@@ -6,7 +6,7 @@
  * respuestas ni de estas peticiones.
  */
 
-import { apiRequest } from "./client"
+import { apiRequest, buildUrl } from "./client"
 
 export interface AuthUser {
   id: string
@@ -43,6 +43,15 @@ export function refresh(): Promise<TokenResponse> {
 /** POST /auth/logout — sin body; borra la cookie del refresh en el backend. */
 export async function logout(): Promise<void> {
   await apiRequest<{ detail: string }>("/auth/logout", { method: "POST" })
+}
+
+/**
+ * URL de GET /auth/google/login — para NAVEGACIÓN de página completa, no para
+ * fetch: el backend responde con una redirección a Google y pone la cookie del
+ * `state` anti-CSRF.
+ */
+export function googleLoginUrl(): string {
+  return buildUrl("/auth/google/login")
 }
 
 /** GET /auth/me — requiere Bearer válido (lo adjunta apiFetch automáticamente). */

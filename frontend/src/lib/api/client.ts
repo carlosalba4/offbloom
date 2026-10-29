@@ -58,7 +58,8 @@ export class ApiError extends Error {
 // Fetch de bajo nivel
 // ---------------------------------------------------------------------------
 
-function buildUrl(path: string): string {
+/** URL absoluta de un endpoint del backend; única fuente de la URL base (también para navegaciones completas). */
+export function buildUrl(path: string): string {
   return `${API_BASE}${path}`
 }
 
