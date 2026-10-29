@@ -1,5 +1,5 @@
 [project]
-name = "DetoxApp"
+name = "offbloom"
 version = "0.1.0"
 description = "Privacy-first agentic digital-wellbeing coach (working name)"
 readme = "README.md"
