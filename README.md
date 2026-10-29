@@ -14,7 +14,7 @@ Built on a LangGraph agent grounded by RAG, served through a model-agnostic Fast
 | Backend | Python, FastAPI, SQLAlchemy + Alembic, SQLite, uv |
 | Auth | Argon2 password hashing, JWT access tokens, rotating hashed refresh tokens in httpOnly cookies |
 | Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, shadcn/ui |
-| Quality | pytest (206 tests), Ruff, DeepEval safety gate, LLM-as-judge groundedness eval |
+| Quality | pytest (216 tests), Ruff, DeepEval safety gate, LLM-as-judge groundedness eval |
 | Ops | Docker, Docker Compose, GitHub Actions CI, Langfuse tracing |
 
 ## Architecture
@@ -64,7 +64,7 @@ Frontend: see `frontend/README.md`.
 ## Tests and quality
 
 ```bash
-uv run pytest                      # 206 tests
+uv run pytest                      # 216 tests
 uv run ruff check .
 uv run ruff format --check .
 ```

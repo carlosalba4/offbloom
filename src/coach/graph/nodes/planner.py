@@ -14,9 +14,18 @@ Contrato: docs/02-architecture.md §2-§3.
 
 from __future__ import annotations
 
+import re
+
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from coach.graph.state import Analysis, Citation, CoachState, RetrievedChunk, WeeklyPlan
+from coach.graph.state import (
+    Analysis,
+    Citation,
+    CoachState,
+    RetrievedChunk,
+    Swap,
+    WeeklyPlan,
+)
 from coach.llm import get_chat_model
 from coach.rag.store import search_knowledge
 
@@ -40,6 +49,11 @@ usaste para fundamentar el plan. Identifica cada cita PREFERENTEMENTE por su
 PROHIBIDO inventar fuentes o ids: cita solo fragmentos presentes en los
 recuperados. Si no se recuperó ningún fragmento, deja `citations` vacío en lugar
 de inventar.
+
+Texto visible. `weekly_focus`, `intentions` y `swaps` los lee la persona
+directamente: escríbelos en lenguaje natural y NO menciones nunca fragmentos,
+números de fragmento, ids ni fuentes dentro de ellos (nada de "(fragmento 1)",
+"[2]" o "según el fragmento..."). Las fuentes van solo en `citations`.
 
 Seguridad (dominio sensible). No diagnosticas, no das consejo clínico, ni
 nombres de fármacos o tratamientos. Te limitas al plan de bienestar digital.
@@ -102,6 +116,48 @@ def _normalize_citations(
     return normalized
 
 
+# Grupo entre () o [] cuyo contenido es SOLO referencias numéricas a fragmentos
+# ("fragmento 1", "fragmentos 1 y 2", "fragmento 1, fragmento 2"), o un "[n]" /
+# "[n, m]" suelto. Se lleva el espacio que lo precede.
+_FRAGMENT_REF = re.compile(
+    r"\s*[(\[]\s*fragmentos?\s*\[?\d+\]?"
+    r"(?:\s*(?:,|y|e)\s*(?:fragmentos?\s*)?\[?\d+\]?)*\s*[)\]]"
+    r"|\s*\[\d+(?:\s*,\s*\d+)*\]",
+    re.IGNORECASE,
+)
+
+
+def _strip_fragment_refs(text: str) -> str:
+    """Elimina las referencias internas a fragmentos de un texto visible.
+
+    Red de seguridad determinista frente a que el LLM copie la numeración de
+    los fragmentos en el plan. Es conservadora: si no hay referencias, devuelve
+    el texto idéntico.
+    """
+    cleaned, count = _FRAGMENT_REF.subn("", text)
+    return cleaned.strip() if count else text
+
+
+def _clean_plan_text(plan: WeeklyPlan) -> WeeklyPlan:
+    """Limpia las referencias a fragmentos de los campos de texto del plan.
+
+    Afecta a `weekly_focus`, `intentions` y `swaps`; `citations` no se toca.
+    """
+    return plan.model_copy(
+        update={
+            "weekly_focus": _strip_fragment_refs(plan.weekly_focus),
+            "intentions": [_strip_fragment_refs(i) for i in plan.intentions],
+            "swaps": [
+                Swap(
+                    habit=_strip_fragment_refs(s.habit),
+                    alternative=_strip_fragment_refs(s.alternative),
+                )
+                for s in plan.swaps
+            ],
+        }
+    )
+
+
 def planner(state: CoachState) -> CoachState:
     """Recupera conocimiento y emite un `plan` semanal fundamentado + `retrieved`.
 
@@ -118,8 +174,7 @@ def planner(state: CoachState) -> CoachState:
     retrieved = search_knowledge(query, k=4)
 
     fragments = "\n\n".join(
-        f"[{i}] id={chunk.id} | fuente={chunk.source}\n{chunk.text}"
-        for i, chunk in enumerate(retrieved, start=1)
+        f"- id={chunk.id} | fuente={chunk.source}\n{chunk.text}" for chunk in retrieved
     )
     user_parts = [
         "Diseña el plan semanal a partir de estos datos.",
@@ -142,5 +197,6 @@ def planner(state: CoachState) -> CoachState:
         return {"errors": ["planner: salida del LLM con formato inesperado"]}
 
     plan = plan.model_copy(update={"citations": _normalize_citations(plan.citations, retrieved)})
+    plan = _clean_plan_text(plan)
 
     return {"plan": plan, "retrieved": retrieved}

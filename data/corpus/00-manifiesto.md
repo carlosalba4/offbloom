@@ -1,4 +1,4 @@
-# Corpus de conocimiento — DetoxApp (contenido base)
+# Corpus de conocimiento — OffBloom (contenido base)
 
 Base de conocimiento que **fundamenta al coach** (RAG). El Planificador y el
 Curador recuperan de aquí para que el consejo esté apoyado en contenido, no

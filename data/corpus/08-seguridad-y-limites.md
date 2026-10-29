@@ -13,7 +13,7 @@ Contenido que define **cómo debe comportarse el coach** en el plano sensible. E
 material de referencia para las evals de seguridad.
 
 ## El coach NO es un profesional
-DetoxApp ofrece acompañamiento de hábitos de bienestar digital. **No diagnostica ni
+OffBloom ofrece acompañamiento de hábitos de bienestar digital. **No diagnostica ni
 trata** problemas de salud mental. No sustituye a un profesional.
 
 ## Distinguir hábito de algo más profundo

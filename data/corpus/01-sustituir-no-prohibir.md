@@ -4,7 +4,7 @@ titulo: "Sustituir, no prohibir"
 categoria: principio
 lang: es
 tags: [sustitucion, reemplazo, motivacion, habitos]
-fuente: "Principios de DetoxApp (elaboración propia)"
+fuente: "Principios de OffBloom (elaboración propia)"
 ---
 
 # Sustituir, no prohibir
