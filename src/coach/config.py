@@ -50,12 +50,28 @@ class Settings(BaseSettings):
             )
         return v
 
+    # Login con Google (OIDC, ADR-009). Los dos secretos son opcionales a
+    # propósito: sin ellos la app arranca igual (CI y tests no necesitan
+    # credenciales reales) y solo /auth/google/login responde 503.
+    # OJO: google_client_id/secret son de OAuth, NO son google_api_key (Gemini).
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+    # Debe coincidir EXACTAMENTE con la URI registrada en Google Cloud Console.
+    google_redirect_uri: str = "http://localhost:8000/auth/google/callback"
+    # Ruta del frontend a la que vuelve el navegador tras el callback; se
+    # concatena con frontend_origin para no duplicar el origen en dos settings.
+    google_post_login_path: str = "/auth/google/callback"
+
     # Cookie del refresh token (transporte httpOnly, cross-origin directo).
     cookie_refresh_name: str = "offbloom_refresh"
     cookie_secure: bool = False
     cookie_samesite: str = "lax"
     cookie_domain: str | None = None
     cookie_path: str = "/auth"
+    # Cookie efímera que transporta el `state` anti-CSRF del flujo OAuth entre
+    # /auth/google/login y /auth/google/callback (double-submit, ADR-009).
+    cookie_oauth_state_name: str = "offbloom_oauth_state"
+    oauth_state_expire_seconds: int = 600
     # Origen del frontend, usado para restringir CORS (allow_credentials=True
     # exige un origen explícito; nunca "*").
     frontend_origin: str = "http://localhost:3000"
@@ -74,6 +90,11 @@ class Settings(BaseSettings):
     langfuse_public_key: str | None = None
     langfuse_secret_key: str | None = None
     langfuse_host: str = "https://cloud.langfuse.com"
+
+    @property
+    def google_post_login_url(self) -> str:
+        """URL del frontend a la que vuelve el navegador tras el callback de Google."""
+        return f"{self.frontend_origin.rstrip('/')}{self.google_post_login_path}"
 
 
 settings = Settings()

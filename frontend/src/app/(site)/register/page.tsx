@@ -3,6 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 
+import { GoogleSignInButton } from "@/components/google-sign-in-button"
 import { GuestGuard } from "@/components/route-guard"
 import { Button } from "@/components/ui/button"
 import {
@@ -91,6 +92,7 @@ function RegisterForm() {
               {submitting ? "Creando cuenta…" : "Crear cuenta"}
             </Button>
           </form>
+          <GoogleSignInButton />
           <p className="mt-4 text-center text-sm text-muted-foreground">
             ¿Ya tienes cuenta?{" "}
             <Link href="/login" className="font-medium text-primary hover:underline">

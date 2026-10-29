@@ -37,8 +37,25 @@ class UserRepo:
         """Busca un usuario por su id."""
         return self.db.query(User).filter(User.id == user_id).first()
 
-    def create(self, email: str, password_hash: str | None = None) -> User:
+    def get_by_google_sub(self, google_sub: str) -> User | None:
+        """Busca un usuario por su identidad de Google (claim `sub`).
+
+        El `sub` es el identificador estable de la cuenta en Google: no cambia
+        aunque el usuario cambie de email, por eso es él —y no el email— quien
+        identifica al usuario en el login con Google (ADR-009).
+        """
+        return self.db.query(User).filter(User.google_sub == google_sub).first()
+
+    def create(
+        self,
+        email: str,
+        password_hash: str | None = None,
+        google_sub: str | None = None,
+    ) -> User:
         """Crea un nuevo usuario con el email normalizado a minúsculas.
+
+        Una cuenta creada vía Google llega con password_hash=None y google_sub
+        informado; una de email+contraseña, al revés.
 
         No hace commit: llama a flush para obtener el id asignado y refresca
         el objeto. El commit lo hace el handler.
@@ -47,8 +64,21 @@ class UserRepo:
             id=str(uuid.uuid4()),
             email=email.lower(),
             password_hash=password_hash,
+            google_sub=google_sub,
         )
         self.db.add(user)
+        self.db.flush()
+        self.db.refresh(user)
+        return user
+
+    def link_google_sub(self, user: User, google_sub: str) -> User:
+        """Vincula una identidad de Google a una cuenta ya existente.
+
+        Quien llama debe haber comprobado antes que el email de Google está
+        verificado y que la cuenta no tiene ya otro google_sub (ADR-009).
+        No hace commit; el handler es responsable.
+        """
+        user.google_sub = google_sub
         self.db.flush()
         self.db.refresh(user)
         return user

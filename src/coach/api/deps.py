@@ -1,4 +1,4 @@
-"""Dependencias FastAPI compartidas: sesión de base de datos y usuario actual."""
+"""Dependencias FastAPI compartidas: sesión de BD, usuario actual y cliente de Google."""
 
 from __future__ import annotations
 
@@ -6,12 +6,14 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from coach.auth.google import GoogleOAuthClient
 from coach.auth.security import InvalidTokenError, decode_access_token
+from coach.config import settings
 from coach.db.models.user import User
 from coach.db.repositories import UserRepo
 from coach.db.session import get_db
 
-__all__ = ["get_db", "get_current_user"]
+__all__ = ["get_db", "get_current_user", "get_google_client"]
 
 # auto_error=False para poder devolver nuestro propio 401 con el detalle y
 # el header WWW-Authenticate uniformes, en vez del genérico de FastAPI.
@@ -46,3 +48,26 @@ def get_current_user(
         raise _UNAUTHENTICATED
 
     return user
+
+
+def get_google_client() -> GoogleOAuthClient:
+    """Construye el cliente OIDC de Google a partir de la configuración.
+
+    503 si faltan las credenciales: el login con Google es opcional, así que
+    la aplicación arranca sin ellas y solo falla el endpoint que las necesita.
+
+    Se expone como dependencia (y no como import directo en el router) para
+    poder sustituirla en los tests con `app.dependency_overrides`, igual que
+    ya se hace con `get_db`.
+    """
+    if not settings.google_client_id or not settings.google_client_secret:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="El login con Google no está configurado en este entorno",
+        )
+
+    return GoogleOAuthClient(
+        client_id=settings.google_client_id,
+        client_secret=settings.google_client_secret,
+        redirect_uri=settings.google_redirect_uri,
+    )

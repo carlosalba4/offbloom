@@ -1,4 +1,5 @@
-"""Casos de uso de autenticación: registro, login, refresh, logout y baja de cuenta.
+"""Casos de uso de autenticación: registro, login (contraseña o Google), refresh,
+logout y baja de cuenta.
 
 `AuthService` orquesta los repositorios de persistencia y las primitivas de
 `security.py`. Nunca hace commit (Pattern B / Decisión D4): esa
@@ -11,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
+from coach.auth.google import GoogleIdentity
 from coach.auth.security import (
     _DUMMY_HASH,
     create_access_token,
@@ -34,6 +36,14 @@ class InvalidCredentials(Exception):
 
 class InvalidRefreshToken(Exception):
     """El refresh token no existe, está revocado o ha expirado."""
+
+
+class UnverifiedGoogleEmail(Exception):
+    """Google no certifica que el usuario sea dueño del email que declara."""
+
+
+class GoogleAccountAlreadyLinked(Exception):
+    """La cuenta con ese email ya está vinculada a OTRA identidad de Google."""
 
 
 def _as_aware_utc(value: datetime) -> datetime:
@@ -91,6 +101,50 @@ class AuthService:
         if not verify_password(password, user.password_hash):
             raise InvalidCredentials("Credenciales inválidas")
 
+        return self._issue_tokens(user.id)
+
+    def login_with_google(self, identity: GoogleIdentity) -> tuple[str, str]:
+        """Resuelve la cuenta que corresponde a una identidad de Google y la loguea.
+
+        Devuelve el MISMO par (access_token, refresh_token) que `authenticate`:
+        quien entra por Google acaba con una sesión idéntica a la de contraseña.
+
+        Resolución, en orden (ADR-009):
+
+        1. Si ya hay una cuenta con ese `sub`, es él. El email NO se actualiza
+           en logins sucesivos: la identidad es el `sub`, y sobrescribir el
+           email podría chocar con el UNIQUE de otra cuenta.
+        2. Si no, y existe una cuenta con ese email, se VINCULA (se le guarda
+           el `sub`) — salvo que ya tuviera otro `sub` distinto.
+        3. Si no existe ninguna, se crea una cuenta nueva sin contraseña.
+
+        GUARDARRAÍL: si Google no ha verificado el email se rechaza de entrada,
+        exista o no la cuenta. Vincular por un email no probado permitiría a
+        cualquiera que declarase el email de otra persona apropiarse de su
+        cuenta; y crear una cuenta con él es imposible de todos modos cuando el
+        email ya está registrado, porque `users.email` es UNIQUE.
+        """
+        if not identity.email_verified:
+            raise UnverifiedGoogleEmail("Google no ha verificado ese email")
+
+        existing = self.users.get_by_google_sub(identity.sub)
+        if existing is not None:
+            return self._issue_tokens(existing.id)
+
+        by_email = self.users.get_by_email(identity.email)
+        if by_email is not None:
+            if by_email.google_sub is not None:
+                raise GoogleAccountAlreadyLinked(
+                    "Esa cuenta ya está vinculada a otra identidad de Google"
+                )
+            self.users.link_google_sub(by_email, identity.sub)
+            return self._issue_tokens(by_email.id)
+
+        user = self.users.create(
+            email=identity.email,
+            password_hash=None,
+            google_sub=identity.sub,
+        )
         return self._issue_tokens(user.id)
 
     def refresh(self, refresh_token: str) -> tuple[str, str]:

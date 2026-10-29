@@ -6,6 +6,7 @@ import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { Loader2 } from "lucide-react"
 
+import { GoogleSignInButton } from "@/components/google-sign-in-button"
 import { GuestGuard } from "@/components/route-guard"
 import { Button } from "@/components/ui/button"
 import {
@@ -87,6 +88,7 @@ function LoginForm() {
               {submitting ? "Entrando…" : "Entrar"}
             </Button>
           </form>
+          <GoogleSignInButton />
           <p className="mt-4 text-center text-sm text-muted-foreground">
             ¿No tienes cuenta?{" "}
             <Link href="/register" className="font-medium text-primary hover:underline">
