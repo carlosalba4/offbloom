@@ -29,3 +29,5 @@ dist/
 # Next.js / TypeScript artifacts
 next-env.d.ts
 *.tsbuildinfo
+# Guía en español: solo local
+docs/guide/*-es.pdf
